@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Photosdrop</title>
+<meta name="description" content="Lossless peer-to-peer photo, video and file transfer with a short code.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23101418'/%3E%3Cpath d='M10 16h10M15 11l5 5-5 5' stroke='%239ECAFF' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='7' cy='16' r='2.5' fill='%239ECAFF'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+<script>
+(function(){try{
+  var m=localStorage.getItem('pd-theme')||'auto';
+  var h=new Date().getHours();
+  var ph=m==='light'?'day':m==='dark'?'night':(h>=5&&h<8?'morning':h>=8&&h<17?'day':h>=17&&h<20?'dusk':'night');
+  var d=document.documentElement;
+  d.setAttribute('data-mode',m);d.setAttribute('data-phase',ph);
+}catch(e){}})();
+</script>
+<style>
+:root{
+  --bg:#F1F4F9;--surface:#FFFFFF;--sc:#EAEFF6;--sc-hi:#E2E8F1;--sv:#DFE4EC;
+  --on:#1A1C20;--on-var:#454A51;--on-var2:#696E75;
+  --outline-v:#C6CBD3;
+  --primary:#0061A4;--on-primary:#FFFFFF;--pc:#D1E4FF;--on-pc:#001D36;
+  --success:#1E6B33;--success-c:#C8EFD2;--error:#B3261E;--error-c:#F9DEDC;
+  --warn:#815600;--warn-c:#FCEFC3;
+  --sh:0 1px 2px rgba(26,28,32,.05),0 2px 10px rgba(26,28,32,.04);
+  --glow:rgba(0,97,164,.05);
+  /* M3 Expressive 动效曲线 */
+  --ease:cubic-bezier(.2,0,0,1);            /* M3 emphasized */
+  --ease-pop:cubic-bezier(.35,1.65,.45,1);  /* M3E expressive spring（过冲回弹） */
+}
+html[data-phase="morning"]{
+  --bg:#F7F3EA;--sc:#EFE8D9;--sc-hi:#E8DFC9;--sv:#E5DEC9;
+  --on:#211E15;--on-var:#4C4738;--on-var2:#6E6857;--outline-v:#D2CBB5;
+  --primary:#7C5800;--on-primary:#FFFFFF;--pc:#FFDF9E;--on-pc:#261A00;
+  --success:#4C662B;--success-c:#DCEFC8;--error:#963731;--error-c:#FCDAD5;
+  --warn:#7C5800;--warn-c:#FCEFC3;--glow:rgba(197,146,37,.06);
+}
+html[data-phase="dusk"]{
+  --bg:#F7F0ED;--sc:#EFE3DE;--sc-hi:#E8DAD4;--sv:#E6DAD5;
+  --on:#201A19;--on-var:#4C4341;--on-var2:#6E6560;--outline-v:#D2C6C2;
+  --primary:#8E4A44;--on-primary:#FFFFFF;--pc:#FFDAD5;--on-pc:#3B0906;
+  --success:#4A6626;--success-c:#D8EFC7;--error:#963731;--error-c:#FCDAD5;
+  --warn:#855032;--warn-c:#F6E0CB;--glow:rgba(142,74,68,.06);
+}
+html[data-phase="night"]{
+  --bg:#101418;--surface:#1A1E23;--sc:#20252B;--sc-hi:#2A3036;--sv:#41474E;
+  --on:#E2E6EB;--on-var:#C3C8CE;--on-var2:#8E949B;--outline-v:#383E45;
+  --primary:#9ECAFF;--on-primary:#003257;--pc:#00497D;--on-pc:#D1E4FF;
+  --success:#8BD9A1;--success-c:#1E4D23;--error:#FFB4AB;--error-c:#93000A;
+  --warn:#F7CE63;--warn-c:#3A2F0A;--sh:none;--glow:rgba(158,202,255,.04);
+}
+html.theming,html.theming *{transition:background-color 1.4s ease,color 1.4s ease,border-color 1.4s ease,box-shadow 1.4s ease!important}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:Roboto,'PingFang SC','Microsoft YaHei','Noto Sans',system-ui,sans-serif;
+  color:var(--on);font-size:15px;line-height:1.6;min-height:100vh;
+  background:radial-gradient(800px 600px at 12% 6%,var(--glow),transparent 70%),
+             radial-gradient(700px 550px at 90% 94%,var(--glow),transparent 70%),var(--bg);
+  background-attachment:fixed;transition:background-color 1.4s ease,color 1.4s ease;
+}
+/* 弹层打开时冻结底层页面滚动 */
+body.pd-lock{position:fixed;left:0;right:0;width:100%;overflow:hidden}
+.gone{display:none!important}
+.material-icons-outlined{font-family:'Material Icons Outlined';font-weight:normal;font-style:normal;font-size:24px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;direction:ltr;font-feature-settings:'liga';-webkit-font-smoothing:antialiased;user-select:none}
+
+/* ============ M3 Expressive 动画库（transform/opacity，GPU 合成） ============ */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes tilePop{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
+@keyframes menuIn{from{opacity:0;transform:scale(.88) translateY(-8px)}to{opacity:1;transform:none}}
+@keyframes flowerPop{from{opacity:0;transform:scale(.2) rotate(-160deg)}to{opacity:1;transform:none}}
+@keyframes rip{to{transform:scale(2.4);opacity:0}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+/* M3E「旋转-停顿」花形 Loader：快转两圈 → 停顿呼吸 → 循环 */
+@keyframes m3spin{
+  0%{transform:rotate(0deg) scale(.96)}
+  58%{transform:rotate(720deg) scale(1.07)}
+  100%{transform:rotate(720deg) scale(.96)}
+}
+.view-anim{animation:fadeUp .34s var(--ease) both}
+.view-anim .card{animation:fadeUp .4s var(--ease) both}
+.view-anim .card:nth-child(2){animation-delay:.05s}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+
+/* ============ 水波纹（M3） ============ */
+.btn,.ibtn,.menu-item,.dz{position:relative;overflow:hidden}
+.ripple{position:absolute;border-radius:50%;background:currentColor;opacity:.16;transform:scale(0);animation:rip .5s ease-out forwards;pointer-events:none}
+
+/* 顶栏 */
+.appbar{position:sticky;top:0;z-index:50;background:var(--surface);border-bottom:1px solid var(--outline-v);height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 16px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-name{font-size:17px;font-weight:500}
+.brand-tag{font-size:11px;color:var(--on-var2);margin-left:6px;white-space:nowrap}
+.top-actions{display:flex;align-items:center;gap:2px}
+.net-chip{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--on-var);background:var(--sc);border-radius:99px;padding:4px 10px;white-space:nowrap;max-width:150px;overflow:hidden;margin-right:4px;animation:fadeUp .3s var(--ease) both}
+.net-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--on-var2);flex:none;transition:background-color .3s}
+.net-chip.ok .dot{background:var(--success)}
+.net-chip.wait .dot{background:var(--warn);animation:pulse 1.6s ease-in-out infinite}
+.net-chip.err .dot{background:var(--error);animation:pulse 1.1s ease-in-out infinite}
+.menu-wrap{position:relative}
+.menu{display:none;position:absolute;right:0;top:46px;z-index:70;min-width:196px;background:var(--surface);border:1px solid var(--outline-v);border-radius:14px;box-shadow:var(--sh),0 8px 24px rgba(0,0,0,.12);padding:6px;transform-origin:top right}
+.menu.open{display:block;animation:menuIn .26s var(--ease-pop) both}
+.menu-item{display:grid;grid-template-columns:22px 1fr 20px;align-items:center;gap:8px;width:100%;height:40px;padding:0 12px;border:none;background:none;border-radius:9px;font:500 13.5px Roboto,'PingFang SC',sans-serif;color:var(--on);cursor:pointer;text-align:left;transition:background-color .15s}
+.menu-item:hover{background:var(--sc)}
+.menu-item .material-icons-outlined{font-size:19px;color:var(--on-var)}
+.menu-item.sel{color:var(--primary)}
+.menu-item .mi-check{font-size:17px;color:var(--primary);opacity:0;transform:scale(.5);transition:opacity .2s,transform .3s var(--ease-pop)}
+.menu-item.sel .mi-check{opacity:1;transform:none}
+
+/* ============ M3E 花形 "i" 按钮（12 瓣 Flower，纯色填充） ============ */
+.flower-btn{animation:flowerPop .6s var(--ease-pop) .25s both}
+.flower-btn:active{transform:scale(.96)}
+.flower-btn svg{display:block;transition:transform .55s var(--ease-pop)}
+.flower-btn:hover svg{transform:rotate(10deg) scale(1.06)}
+.flower-btn:active svg{transform:scale(.8) rotate(-16deg);transition:transform .12s var(--ease)}
+.petals{fill:var(--primary)}
+.fl-glyph{fill:var(--on-primary)}
+
+/* ============ M3E 花形 Loader ============ */
+.m3-load{width:46px;height:46px;margin:0 auto;color:var(--primary)}
+.m3-load svg{display:block;width:100%;height:100%;animation:m3spin 2.2s cubic-bezier(.45,0,.2,1) infinite}
+.m3-load .petals{fill:currentColor}
+
+/* 通用 */
+.card{background:var(--surface);border-radius:16px;box-shadow:var(--sh);padding:22px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font:500 14px Roboto,'PingFang SC',sans-serif;border-radius:99px;padding:0 22px;height:44px;color:var(--on);user-select:none;touch-action:manipulation;transition:transform .5s var(--ease-pop),filter .18s,background-color .18s}
+.btn .material-icons-outlined{font-size:18px}
+.btn-filled{background:var(--primary);color:var(--on-primary)}
+.btn-filled:hover{filter:brightness(.94);transform:translateY(-1px)}
+.btn-tonal{background:var(--pc);color:var(--on-pc)}
+.btn-text{color:var(--primary);background:transparent}
+.btn-text:hover{background:var(--sc)}
+.btn:active{transform:scale(.96);transition:transform .1s var(--ease)}
+.btn[disabled]{opacity:.38;pointer-events:none}
+.btn-lg{height:50px;font-size:15px}
+.btn-sm{height:34px;font-size:12.5px;padding:0 14px}
+.ibtn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--on-var);background:transparent;border:none;cursor:pointer;flex:none;touch-action:manipulation;transition:transform .5s var(--ease-pop),background-color .18s,color .18s}
+.ibtn:hover{background:var(--sc)}
+.ibtn:active{transform:scale(.9);transition:transform .1s var(--ease)}
+.ibtn .material-icons-outlined{font-size:21px}
+#snackbar{position:fixed;left:50%;bottom:26px;transform:translate(-50%,16px) scale(.9);background:#323232;color:#fff;padding:12px 20px;border-radius:12px;font-size:13.5px;opacity:0;pointer-events:none;transition:opacity .25s,transform .45s var(--ease-pop);z-index:80;max-width:min(90vw,520px)}
+#snackbar.show{opacity:1;transform:translate(-50%,0) scale(1)}
+
+/* 信息页：毛玻璃背景 + 内部滚动不外溢 */
+#infoOverlay{position:fixed;inset:0;z-index:75;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:rgba(0,0,0,.30);
+  -webkit-backdrop-filter:blur(16px) saturate(1.15);
+  backdrop-filter:blur(16px) saturate(1.15);
+  opacity:0;transition:opacity .24s}
+html[data-phase="night"] #infoOverlay{background:rgba(0,0,0,.48)}
+#infoOverlay.show{opacity:1}
+.dialog-card{background:var(--surface);border-radius:24px;box-shadow:var(--sh),0 12px 40px rgba(0,0,0,.24);width:100%;max-width:400px;max-height:min(84vh,660px);display:flex;flex-direction:column;overflow:hidden;transform:scale(.7) translateY(26px);opacity:0;transition:transform .5s var(--ease-pop),opacity .22s var(--ease)}
+#infoOverlay.show .dialog-card{transform:none;opacity:1}
+.dialog-head{display:flex;align-items:center;justify-content:space-between;padding:18px 12px 6px 22px;flex:none}
+.dialog-head h2{font-size:19px;font-weight:500}
+.dialog-body{padding:8px 22px 14px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.set-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--on-var);margin-bottom:8px}
+.set-title .material-icons-outlined{font-size:17px}
+.guide-item{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-size:13px;color:var(--on-var);line-height:1.55;animation:fadeUp .34s var(--ease) both}
+.guide-item:nth-child(2){animation-delay:.05s}
+.guide-item:nth-child(3){animation-delay:.1s}
+.guide-item:nth-child(4){animation-delay:.15s}
+.guide-item:nth-child(5){animation-delay:.2s}
+.guide-item:nth-child(6){animation-delay:.25s}
+.gi-ic{font-size:18px;color:var(--primary);flex:none;margin-top:2px}
+.dialog-foot{padding:12px 20px 16px;border-top:1px solid var(--outline-v);text-align:center;font-size:12px;color:var(--on-var2);font-variant-numeric:tabular-nums;flex:none}
+
+/* 居中布局 */
+.mid{max-width:420px;margin:0 auto;padding:34px 16px 44px}
+.mid .card{text-align:center}
+.dim{color:var(--on-var);font-size:13.5px}
+.c-head{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:18px}
+.ch-ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--sc);color:var(--primary)}
+.ch-ic .material-icons-outlined{font-size:23px}
+.c-head h2{font-size:18px;font-weight:500}
+.c-head p{font-size:12.5px;color:var(--on-var)}
+.warnbox{display:flex;gap:10px;align-items:flex-start;background:var(--warn-c);color:var(--warn);border-radius:12px;padding:12px 14px;font-size:12.5px;text-align:left;margin-bottom:14px}
+.warnbox .material-icons-outlined{font-size:18px;flex:none}
+
+/* OTP */
+.otp{display:flex;gap:8px;justify-content:center;margin:2px 0 10px}
+.otp input{width:44px;height:58px;text-align:center;font:500 23px Roboto,monospace;color:var(--on);background:var(--sc);border:1.5px solid var(--outline-v);border-radius:12px;outline:none;text-transform:uppercase;caret-color:var(--primary);transition:border-color .2s,background-color .2s,transform .45s var(--ease-pop)}
+.otp input:focus{border-color:var(--primary);background:var(--surface);transform:scale(1.07)}
+.otp input.filled{border-color:var(--primary);background:var(--pc);color:var(--on-pc)}
+.otp input.err{border-color:var(--error);animation:pulse .7s ease-in-out 2}
+.join-err{min-height:18px;font-size:12px;color:var(--error);margin-bottom:6px;text-align:center}
+
+/* 校验码方块：弹性逐个弹出 */
+.tiles{display:flex;gap:10px;justify-content:center;align-items:center;margin:20px 0}
+.tile{width:50px;height:64px;border-radius:12px;background:var(--pc);color:var(--on-pc);display:grid;place-items:center;font:500 25px Roboto,monospace;animation:tilePop .5s var(--ease-pop) both}
+.tile-gap{width:12px;height:3px;border-radius:2px;background:var(--on-var2);animation:fadeUp .4s var(--ease) .25s both}
+.row-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.errbox{margin-top:16px;background:var(--error-c);color:var(--error);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px;align-items:center;font-size:13px;animation:fadeUp .3s var(--ease) both}
+
+/* 会话 */
+.sess{max-width:720px;margin:0 auto;padding:16px 16px 56px}
+.status{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 18px}
+.st-grp{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--on-var)}
+.st-grp .material-icons-outlined{font-size:18px;color:var(--primary)}
+.st-grp b{color:var(--on);font-weight:500;font-variant-numeric:tabular-nums}
+.status .btn{margin-left:auto}
+.dz{margin-top:14px;border:1.5px dashed var(--on-var2);border-radius:16px;text-align:center;padding:28px 16px;cursor:pointer;background:var(--surface);display:flex;flex-direction:column;align-items:center;gap:4px;transition:border-color .2s,background-color .2s,transform .5s var(--ease-pop)}
+.dz:hover,.dz.drag{border-color:var(--primary);background:var(--pc)}
+.dz:active{transform:scale(.985);transition:transform .1s var(--ease)}
+.dz-icon{font-size:38px;color:var(--primary)}
+.dz-t1{font-size:14.5px;font-weight:500}
+.dz-t2{font-size:12px;color:var(--on-var)}
+.dz:hover .dz-t2,.dz.drag .dz-t2{color:var(--on-pc)}
+.xlist{margin-top:14px}
+.xhead{display:flex;align-items:center;gap:9px;margin-bottom:2px}
+.xhead .material-icons-outlined{color:var(--primary);font-size:20px}
+.xhead h3{font-size:14.5px;font-weight:500}
+.list{display:flex;flex-direction:column}
+.empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:22px 10px;color:var(--on-var2);font-size:13px}
+.empty .material-icons-outlined{font-size:32px;opacity:.4}
+.xf{display:flex;gap:13px;align-items:flex-start;padding:14px 4px;animation:fadeUp .32s var(--ease) both}
+.xf+.xf{border-top:1px solid var(--outline-v)}
+.xf-ic{position:relative;width:44px;height:44px;border-radius:11px;background:var(--sc);color:var(--primary);display:grid;place-items:center;flex:none;overflow:visible}
+.xf-ic .material-icons-outlined{font-size:22px}
+.xf-ic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;cursor:zoom-in;border-radius:11px;display:block;animation:fadeUp .3s var(--ease) both}
+.dir{position:absolute;right:-5px;bottom:-5px;width:19px;height:19px;border-radius:50%;display:grid;place-items:center;animation:tilePop .34s var(--ease-pop) .12s both}
+.dir.up{background:var(--pc);color:var(--on-pc)}
+.dir.dn{background:var(--success-c);color:var(--success)}
+.dir .material-icons-outlined{font-size:13px}
+.xf-body{flex:1;min-width:0}
+.xf-top{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.xf-name{font-weight:500;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xf-size{font-size:12px;color:var(--on-var);flex:none;font-variant-numeric:tabular-nums}
+.xf-sub{display:flex;justify-content:space-between;align-items:center;margin-top:2px;font-size:12px;color:var(--on-var);gap:8px}
+.xf-info{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.xf-state{flex:none;font-size:11.5px;padding:2px 10px;border-radius:99px;background:var(--sc);color:var(--on-var);white-space:nowrap;transition:background-color .25s,color .25s}
+.st-send{background:var(--pc);color:var(--on-pc)}
+.st-done{background:var(--success-c);color:var(--success)}
+.st-err{background:var(--error-c);color:var(--error)}
+.xf-prog{height:4px;border-radius:2px;background:var(--sv);overflow:hidden;margin-top:8px}
+.xf-bar{height:100%;width:0;background:var(--primary);border-radius:2px;transition:width .22s var(--ease)}
+.xf-bar.fini{background:var(--success);transition:width .22s var(--ease),background-color .4s}
+.xf-side{display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex:none}
+.vbadge{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--success);background:var(--success-c);border-radius:99px;padding:3px 10px;white-space:nowrap;animation:tilePop .4s var(--ease-pop) both}
+.vbadge.bad{color:var(--error);background:var(--error-c)}
+.vbadge .material-icons-outlined{font-size:13px}
+
+/* 图片查看（弹簧缩放 + 滚动锁定） */
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;opacity:0;transition:opacity .22s}
+#lightbox.show{opacity:1}
+#lightbox img{max-width:92vw;max-height:74vh;border-radius:10px;transform:scale(.9);transition:transform .4s var(--ease-pop)}
+#lightbox.show img{transform:none}
+.lb-bar{display:flex;align-items:center;gap:12px;color:#e8eaed;font-size:13px;max-width:92vw}
+.lb-bar .meta{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.8}
+#lightbox .ibtn{color:#e8eaed}
+#lightbox .ibtn:hover{background:rgba(255,255,255,.15)}
+
+@media (max-width:600px){
+  .brand-tag{display:none}
+  .appbar{padding:0 10px}
+  .otp input{width:40px;height:54px;font-size:21px}
+  .mid{padding:24px 14px 40px}
+}
+</style>
+</head>
+<body>
+
+<!-- M3E 花形（12 瓣 Flower）定义，供 "i" 按钮与 Loader 复用 -->
+<svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+  <defs>
+    <g id="m3Flower">
+      <circle cx="12" cy="12" r="4.1"/>
+      <ellipse cx="12" cy="5.8" rx="2.35" ry="5.4"/>
+      <ellipse cx="12" cy="5.8" rx="2.35" ry="5.4" transform="rotate(30 12 12)"/>
+      <ellipse cx="12" cy="5.8" rx="2.35" ry="5.4" transform="rotate(60 12 12)"/>
+      <ellipse cx="12" cy="5.8" rx="2.35" ry="5.4" transform="rotate(90 12 12)"/>
+      <ellipse cx="12" cy="5.8" rx="2.35" ry="5.4" transform="rotate(120 12 12)"/>
+      <ellipse cx="12" cy="5.8" rx="2.35" ry="5.4" transform="rotate(150 12 12)"/>
+      <ellipse cx="12" cy="5.8" rx="2.35" ry="5.4" transform="rotate(180 12 12)"/>
+      <ellipse cx="12" cy="5.8" rx="2.35" ry="5.4" transform="rotate(210 12 12)"/>
+      <ellipse cx="12" cy="5.8" rx="2.35" ry="5.4" transform="rotate(240 12 12)"/>
+      <ellipse cx="12" cy="5.8" rx="2.35" ry="5.4" transform="rotate(270 12 12)"/>
+      <ellipse cx="12" cy="5.8" rx="2.35" ry="5.4" transform="rotate(300 12 12)"/>
+      <ellipse cx="12" cy="5.8" rx="2.35" ry="5.4" transform="rotate(330 12 12)"/>
+    </g>
+  </defs>
+</svg>
+
+<header class="appbar">
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <rect width="32" height="32" rx="8" fill="var(--pc)"/>
+      <path d="M10 16h10M15 11l5 5-5 5" stroke="var(--primary)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="7" cy="16" r="2.5" fill="var(--primary)"/>
+    </svg>
+    <span class="brand-name">Photosdrop</span><span class="brand-tag" data-i18n="tag">无损直传</span>
+  </div>
+  <div class="top-actions">
+    <span class="net-chip gone" id="netChip"><span class="dot"></span><span id="netChipText">连接中…</span></span>
+    <!-- M3E 花形 "i"：纯色主色填充，花心 i -->
+    <button class="ibtn flower-btn" id="btnInfo" aria-label="Info">
+      <svg width="27" height="27" viewBox="0 0 24 24" aria-hidden="true">
+        <use href="#m3Flower" class="petals"/>
+        <circle cx="12" cy="10.15" r="1.05" class="fl-glyph"/>
+        <rect x="11.4" y="11.9" width="1.2" height="3.2" rx=".6" class="fl-glyph"/>
+      </svg>
+    </button>
+    <div class="menu-wrap">
+      <button class="ibtn" id="btnLang" aria-label="Language"><span class="material-icons-outlined">translate</span></button>
+      <div class="menu" id="langMenu"></div>
+    </div>
+    <div class="menu-wrap">
+      <button class="ibtn" id="btnTheme" aria-label="Theme"><span class="material-icons-outlined" id="themeIcon">schedule</span></button>
+      <div class="menu" id="themeMenu"></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- 首页 -->
+  <section id="viewHome">
+    <div class="mid">
+      <div class="warnbox gone" id="secureWarn"><span class="material-icons-outlined">warning</span><span data-i18n="secure">当前环境不支持点对点连接（需要 HTTPS 或直接打开本地文件），传输可能失败。</span></div>
+      <div class="card">
+        <div class="c-head">
+          <span class="ch-ic"><span class="material-icons-outlined">share</span></span>
+          <h2 data-i18n="create_t">创建连接</h2>
+          <p data-i18n="create_p">生成 6 位校验码分享给对方</p>
+        </div>
+        <button class="btn btn-filled btn-lg" style="width:100%" id="btnCreate"><span class="material-icons-outlined">add</span><span data-i18n="create_btn">创建</span></button>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="c-head">
+          <span class="ch-ic"><span class="material-icons-outlined">keyboard</span></span>
+          <h2 data-i18n="join_t">加入</h2>
+          <p data-i18n="join_p">输入对方的 6 位校验码</p>
+        </div>
+        <div class="otp" id="otp">
+          <input maxlength="2" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <input maxlength="2" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <input maxlength="2" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <input maxlength="2" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <input maxlength="2" autocomplete="off" autocapitalize="characters" spellcheck="false">
+          <input maxlength="2" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        </div>
+        <div class="join-err" id="joinErr"></div>
+        <button class="btn btn-tonal btn-lg" style="width:100%" id="btnJoin"><span class="material-icons-outlined">link</span><span data-i18n="join_btn">连接</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 主机等待（M3E 花形 Loader） -->
+  <section id="viewHost" class="gone">
+    <div class="mid"><div class="card">
+      <div class="m3-load" id="hostSpin" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><use href="#m3Flower" class="petals"/></svg>
+      </div>
+      <h2 style="font-size:19px;font-weight:500;margin-top:14px" data-i18n="host_t">等待对方加入</h2>
+      <div class="dim" id="hostDesc">分享此 6 位校验码</div>
+      <div class="tiles" id="codeTiles"></div>
+      <div class="row-btns">
+        <button class="btn btn-tonal" id="btnCopy"><span class="material-icons-outlined">content_copy</span><span data-i18n="copy">复制校验码</span></button>
+        <button class="btn btn-text" id="btnNewCode"><span class="material-icons-outlined">refresh</span><span data-i18n="newcode">换一个码</span></button>
+      </div>
+      <div class="errbox gone" id="hostErr">
+        <span id="hostErrMsg"></span>
+        <button class="btn btn-filled btn-sm" id="btnHostRetry"><span class="material-icons-outlined">refresh</span><span data-i18n="retry">重试</span></button>
+      </div>
+      <button class="btn btn-text" style="margin-top:12px" id="btnHostBack"><span class="material-icons-outlined">arrow_back</span><span data-i18n="back">返回</span></button>
+    </div></div>
+  </section>
+
+  <!-- 加入连接中（M3E 花形 Loader） -->
+  <section id="viewConnect" class="gone">
+    <div class="mid"><div class="card">
+      <div class="m3-load" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><use href="#m3Flower" class="petals"/></svg>
+      </div>
+      <h2 style="font-size:19px;font-weight:500;margin-top:14px" id="conStage">正在连接服务器…</h2>
+      <div class="dim" id="conCode" style="margin-top:2px;font-variant-numeric:tabular-nums"></div>
+      <button class="btn btn-text" style="margin-top:12px" id="btnConCancel"><span class="material-icons-outlined">close</span><span data-i18n="cancel">取消</span></button>
+    </div></div>
+  </section>
+
+  <!-- 会话 -->
+  <section id="viewSession" class="gone">
+    <div class="sess">
+      <div class="card status">
+        <span class="st-grp"><span class="material-icons-outlined" id="connIcon">check_circle</span><span id="connText">已连接</span></span>
+        <span class="st-grp"><span class="material-icons-outlined">speed</span><b id="latChip">–</b></span>
+        <span class="st-grp"><span class="material-icons-outlined">arrow_upward</span><b id="statUp">0 B</b></span>
+        <span class="st-grp"><span class="material-icons-outlined">arrow_downward</span><b id="statDn">0 B</b></span>
+        <button class="btn btn-text btn-sm" id="btnLeave"><span class="material-icons-outlined">exit_to_app</span><span data-i18n="leave">断开</span></button>
+      </div>
+      <div class="dz" id="dropzone" tabindex="0" role="button">
+        <span class="material-icons-outlined dz-icon">cloud_upload</span>
+        <div class="dz-t1" data-i18n="dz_t">拖放文件到此处，或点击选择</div>
+        <div class="dz-t2" data-i18n="dz_p">可多选 · 全部类型 · 支持 Ctrl+V 粘贴</div>
+        <input type="file" id="fileInput" multiple hidden>
+      </div>
+      <div class="card xlist">
+        <div class="xhead"><span class="material-icons-outlined">swap_vert</span><h3 data-i18n="list_t">传输</h3></div>
+        <div class="list" id="xferList"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 信息页：使用指南 + 版本号（毛玻璃背景，打开时锁定底层滚动） -->
+<div id="infoOverlay" class="gone">
+  <div class="dialog-card" role="dialog" aria-modal="true">
+    <div class="dialog-head">
+      <h2 data-i18n="info">信息</h2>
+      <button class="ibtn" id="btnInfoClose" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+    </div>
+    <div class="dialog-body">
+      <div class="set-title"><span class="material-icons-outlined">menu_book</span><span data-i18n="guide">使用指南</span></div>
+      <div class="guide-item"><span class="material-icons-outlined gi-ic">add_circle</span><span data-i18n="g1">创建：一台设备点击「创建」生成 6 位校验码，告诉对方。</span></div>
+      <div class="guide-item"><span class="material-icons-outlined gi-ic">link</span><span data-i18n="g2">加入：另一台设备输入该校验码，两台设备即建立点对点连接。</span></div>
+      <div class="guide-item"><span class="material-icons-outlined gi-ic">cloud_upload</span><span data-i18n="g3">传输：拖放或点击选择文件（可多选、任意类型）；收到后点击「保存」。</span></div>
+      <div class="guide-item"><span class="material-icons-outlined gi-ic">verified</span><span data-i18n="g4">无损：文件按原始字节直传，SHA-256 校验与大小核对全部通过才标记成功；拍摄信息（EXIF）完整保留。</span></div>
+      <div class="guide-item"><span class="material-icons-outlined gi-ic">lightbulb</span><span data-i18n="g5">提示：配对时两端需联网，文件不经任何服务器；传输中请保持页面打开。</span></div>
+    </div>
+    <div class="dialog-foot">Photosdrop · v1.10</div>
+  </div>
+</div>
+
+<div id="lightbox" class="gone">
+  <div class="lb-bar">
+    <span id="lbName" class="meta"></span>
+    <button class="btn btn-filled btn-sm" id="lbSave"><span class="material-icons-outlined">file_download</span><span data-i18n="dl">下载</span></button>
+    <button class="ibtn" id="lbClose" aria-label="Close"><span class="material-icons-outlined">close</span></button>
+  </div>
+  <img id="lbImg" alt="">
+</div>
+<div id="snackbar" role="status"></div>
+
+<!-- 全局错误捕获 -->
+<script>
+window.addEventListener('error',function(e){
+  try{
+    var s=document.getElementById('snackbar');
+    if(s){
+      s.textContent='脚本错误：'+(e.message||'未知错误');
+      s.classList.add('show');
+      setTimeout(function(){s.classList.remove('show')},5000);
+    }
+  }catch(_){}
+},true);
+</script>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= i18n ================= */
+const I18N={
+"en":{"tag":"Lossless transfer",
+"info":"Info","guide":"How to use",
+"g1":"Create: on one device, tap “Create” to get a 6-character code, then share it.",
+"g2":"Join: enter the code on the other device — the two devices connect directly.",
+"g3":"Transfer: drop or pick files (multiple, any type); tap “Save” after receiving.",
+"g4":"Lossless: files are sent as raw bytes; marked success only when SHA-256 and size both match. Photo metadata (EXIF) is fully preserved.",
+"g5":"Tip: both devices need internet for pairing; files never touch a server. Keep the page open during transfer.",
+"theme_auto":"Auto (time of day)","theme_light":"Light","theme_dark":"Dark",
+"net_wait":"Connecting…","net_peer":"Waiting","net_in":"Peer connecting…","net_on":"Connected","net_off":"Disconnected","net_err":"Failed",
+"create_t":"Create","create_p":"Generate a 6-character code to share","create_btn":"Create connection",
+"join_t":"Join","join_p":"Enter the 6-character code","join_btn":"Connect",
+"otp_short":"Enter the complete 6-character code","otp_bad":"Code not found — check it, or the host closed the page",
+"otp_timeout":"Could not connect — check the code and that the host is waiting",
+"otp_signal":"All signaling channels failed. Check your network",
+"otp_full":"The host is already connected to another device",
+"secure":"This environment does not support P2P (needs HTTPS or a local file). Transfer may fail.",
+"con_sig":"Contacting server…","con_dial":"Calling the other device…","con_ice":"Establishing direct link…","con_retry":"Retrying…","cancel":"Cancel",
+"host_t":"Waiting for the other device","host_p":"Share this 6-character code","host_in":"The other device is connecting…",
+"host_err":"All signaling channels failed. Check your network and retry","retry":"Retry",
+"copy":"Copy code","copied":"Code copied","copyfail":"Copy failed","newcode":"New code","back":"Back",
+"conn_ok":"Connected","conn_lan":"Direct · LAN","conn_p2p":"Direct · Internet","conn_relay":"Relayed",
+"disc":"The other side disconnected. Reload the page to reconnect",
+"dz_t":"Drop files here, or tap to choose","dz_p":"Multiple files · any type · Ctrl+V works too",
+"list_t":"Transfers","list_empty":"Files will appear here",
+"st_queue":"Queued","st_send":"Sending","st_recv":"Receiving","st_verify":"Verifying",
+"st_done_r":"Received · verified","st_done_s":"Delivered · verified","st_bad_s":"Delivered · failed","st_bad":"Failed check","st_err":"Failed","st_int":"Interrupted","err_conn":"Connection lost",
+"err_size":"Incomplete — size mismatch",
+"badge_ok":"SHA-256 · lossless","badge_exif":"Photo metadata kept","badge_bad":"Checksum mismatch",
+"save":"Save","orig":"Original file · uncompressed","dl":"Download",
+"toast_r":"Received {0}","toast_ok":" · verified","toast_bad":" · verification failed","toast_cancel":"{0} was canceled by peer",
+"unstable":"Connection unstable…","big":"{0} is over 1.5 GB","min":"{0} min left","sec":"{0} s left"},
+
+"zh-CN":{"tag":"无损直传",
+"info":"信息","guide":"使用指南",
+"g1":"创建：一台设备点击「创建」生成 6 位校验码，告诉对方。",
+"g2":"加入：另一台设备输入该校验码，两台设备即建立点对点连接。",
+"g3":"传输：拖放或点击选择文件（可多选、任意类型）；收到后点击「保存」。",
+"g4":"无损：文件按原始字节直传，SHA-256 校验与大小核对全部通过才标记成功；拍摄信息（EXIF）完整保留。",
+"g5":"提示：配对时两端需联网，文件不经任何服务器；传输中请保持页面打开。",
+"theme_auto":"自动（跟随时间）","theme_light":"浅色","theme_dark":"深色",
+"net_wait":"连接中…","net_peer":"等待对方","net_in":"对方正在连接…","net_on":"已连接","net_off":"已断开","net_err":"连接失败",
+"create_t":"创建连接","create_p":"生成 6 位校验码分享给对方","create_btn":"创建",
+"join_t":"加入","join_p":"输入对方的 6 位校验码","join_btn":"连接",
+"otp_short":"请输入完整的 6 位校验码","otp_bad":"校验码无效：找不到该连接",
+"otp_timeout":"连接失败：请确认校验码正确且对方正在等待",
+"otp_signal":"所有信令通道均连接失败，请检查网络",
+"otp_full":"对方已与其他设备连接",
+"secure":"当前环境不支持点对点连接（需要 HTTPS 或直接打开本地文件），传输可能失败。",
+"con_sig":"正在连接服务器…","con_dial":"正在呼叫对方设备…","con_ice":"正在建立直连…","con_retry":"正在重试…","cancel":"取消",
+"host_t":"等待对方加入","host_p":"分享此 6 位校验码","host_in":"对方正在连接…",
+"host_err":"所有信令通道均连接失败，请检查网络后重试","retry":"重试",
+"copy":"复制校验码","copied":"校验码已复制","copyfail":"复制失败，请手动记录","newcode":"换一个码","back":"返回",
+"conn_ok":"已连接","conn_lan":"局域网直连","conn_p2p":"互联网直连","conn_relay":"中继连接",
+"disc":"对方已断开，刷新页面重新连接",
+"dz_t":"拖放文件到此处，或点击选择","dz_p":"可多选 · 全部类型 · 支持 Ctrl+V 粘贴",
+"list_t":"传输","list_empty":"传输的文件会显示在这里",
+"st_queue":"排队中","st_send":"传输中","st_recv":"接收中","st_verify":"校验中",
+"st_done_r":"已接收 · 校验一致","st_done_s":"已送达 · 校验一致","st_bad_s":"送达 · 校验失败","st_bad":"校验失败","st_err":"失败","st_int":"已中断","err_conn":"连接中断",
+"err_size":"文件不完整：大小不一致",
+"badge_ok":"SHA-256 校验一致 · 无损","badge_exif":"拍摄信息已保留","badge_bad":"校验不一致",
+"save":"保存","orig":"原始文件 · 未压缩","dl":"下载",
+"toast_r":"已接收 {0}","toast_ok":" · 校验一致","toast_bad":" · 校验失败","toast_cancel":"对方取消了 {0}",
+"unstable":"连接不稳定…","big":"{0} 超过 1.5GB","min":"剩 {0} 分","sec":"剩 {0} 秒"},
+
+"zh-TW":{"tag":"無損直傳",
+"info":"資訊","guide":"使用指南",
+"g1":"建立：一台裝置點擊「建立」產生 6 位驗證碼，告訴對方。",
+"g2":"加入：另一台裝置輸入該驗證碼，兩台裝置即建立點對點連線。",
+"g3":"傳輸：拖放或點選選擇檔案（可多選、任意類型）；收到後點擊「儲存」。",
+"g4":"無損：檔案按原始位元組直傳，SHA-256 驗證與大小核對全部通過才標記成功；拍攝資訊（EXIF）完整保留。",
+"g5":"提示：配對時兩端需連網，檔案不經任何伺服器；傳輸中請保持頁面開啟。",
+"theme_auto":"自動（跟隨時間）","theme_light":"淺色","theme_dark":"深色",
+"net_wait":"連線中…","net_peer":"等待對方","net_in":"對方正在連線…","net_on":"已連線","net_off":"已中斷","net_err":"連線失敗",
+"create_t":"建立連線","create_p":"產生 6 位驗證碼分享給對方","create_btn":"建立",
+"join_t":"加入","join_p":"輸入對方的 6 位驗證碼","join_btn":"連線",
+"otp_short":"請輸入完整的 6 位驗證碼","otp_bad":"驗證碼無效：找不到該連線",
+"otp_timeout":"連線失敗：請確認驗證碼正確且對方正在等待",
+"otp_signal":"所有信令通道均連線失敗，請檢查網路",
+"otp_full":"對方已與其他裝置連線",
+"secure":"目前環境不支援點對點連線（需要 HTTPS 或直接開啟本機檔案），傳輸可能失敗。",
+"con_sig":"正在連線伺服器…","con_dial":"正在呼叫對方裝置…","con_ice":"正在建立直連…","con_retry":"正在重試…","cancel":"取消",
+"host_t":"等待對方加入","host_p":"分享此 6 位驗證碼","host_in":"對方正在連線…",
+"host_err":"所有信號通道均連線失敗，請檢查網路後重試","retry":"重試",
+"copy":"複製驗證碼","copied":"驗證碼已複製","copyfail":"複製失敗，請手動記錄","newcode":"換一組碼","back":"返回",
+"conn_ok":"已連線","conn_lan":"區域網路直連","conn_p2p":"網際網路直連","conn_relay":"中繼連線",
+"disc":"對方已中斷，重新整理頁面重新連線",
+"dz_t":"拖放檔案至此，或點選選擇","dz_p":"可多選 · 全部類型 · 支援 Ctrl+V 貼上",
+"list_t":"傳輸","list_empty":"傳輸的檔案會顯示在這裡",
+"st_queue":"排隊中","st_send":"傳輟中","st_recv":"接收中","st_verify":"驗證中",
+"st_done_r":"已接收 · 驗證一致","st_done_s":"已送達 · 驗證一致","st_bad_s":"送達 · 驗證失敗","st_bad":"驗證失敗","st_err":"失敗","st_int":"已中斷","err_conn":"連線中斷",
+"err_size":"檔案不完整：大小不一致",
+"badge_ok":"SHA-256 驗證一致 · 無損","badge_exif":"拍攝資訊已保留","badge_bad":"驗證不一致",
+"save":"儲存","orig":"原始檔案 · 未壓縮","dl":"下載",
+"toast_r":"已接收 {0}","toast_ok":" · 驗證一致","toast_bad":" · 驗證失敗","toast_cancel":"對方取消了 {0}",
+"unstable":"連線不穩定…","big":"{0} 超過 1.5GB","min":"剩 {0} 分","sec":"剩 {0} 秒"},
+
+"da":{"tag":"Tabelfri overførsel",
+"info":"Info","guide":"Sådan bruger du",
+"g1":"Opret: Tryk “Opret” på den ene enhed for at få en kode på 6 tegn, og del den.",
+"g2":"Deltag: Indtast koden på den anden enhed — de to enheder forbinder direkte.",
+"g3":"Overfør: Træk eller vælg filer (flere, alle typer); tryk “Gem” efter modtagelse.",
+"g4":"Tabelfrit: Filer sendes som rå bytes; først markeret som succes når SHA-256 og størrelse stemmer. Foto-metadata (EXIF) bevares fuldt ud.",
+"g5":"Tip: Begge enheder skal have internet til parring; filer rører aldrig en server. Hold siden åben under overførslen.",
+"theme_auto":"Automatisk (tid)","theme_light":"Lys","theme_dark":"Mørk",
+"net_wait":"Forbinder…","net_peer":"Venter","net_in":"Modparten forbinder…","net_on":"Forbundet","net_off":"Afbrudt","net_err":"Fejl",
+"create_t":"Opret","create_p":"Generér en kode på 6 tegn","create_btn":"Opret forbindelse",
+"join_t":"Deltag","join_p":"Indtast koden på 6 tegn","join_btn":"Forbind",
+"otp_short":"Indtast hele koden på 6 tegn","otp_bad":"Koden blev ikke fundet — tjek den, eller værten lukkede siden",
+"otp_timeout":"Kunne ikke forbinde — tjek koden, og at værten venter",
+"otp_signal":"Alle signaleringskanaler fejlede. Tjek dit netværk",
+"otp_full":"Værten er allerede forbundet til en anden enhed",
+"secure":"Dette miljø understøtter ikke P2P (kræver HTTPS eller en lokal fil). Overførslen kan fejle.",
+"con_sig":"Kontakter server…","con_dial":"Ringer den anden enhed op…","con_ice":"Etablerer direkte forbindelse…","con_retry":"Prøver igen…","cancel":"Annullér",
+"host_t":"Venter på den anden enhed","host_p":"Del denne kode på 6 tegn","host_in":"Den anden enhed forbinder…",
+"host_err":"Alle signaleringskanaler fejlede. Tjek netværket og prøv igen","retry":"Prøv igen",
+"copy":"Kopiér koden","copied":"Koden er kopieret","copyfail":"Kopiering mislykkedes","newcode":"Ny kode","back":"Tilbage",
+"conn_ok":"Forbundet","conn_lan":"Direkte · LAN","conn_p2p":"Direkte · internet","conn_relay":"Via relay",
+"disc":"Den anden side afbrød. Genindlæs siden for at forbinde igen",
+"dz_t":"Træk filer hertil, eller klik","dz_p":"Flere filer · alle typer · Ctrl+V virker også",
+"list_t":"Overførsler","list_empty":"Filer vises her",
+"st_queue":"I kø","st_send":"Sender","st_recv":"Modtager","st_verify":"Verificerer",
+"st_done_r":"Modtaget · OK","st_done_s":"Leveret · OK","st_bad_s":"Leveret · fejl","st_bad":"Tjek mislykkedes","st_err":"Fejl","st_int":"Afbrudt","err_conn":"Forbindelsen tabtes",
+"err_size":"Ufuldstændig — størrelsen stemmer ikke",
+"badge_ok":"SHA-256 · tabelfrit","badge_exif":"Foto-metadata bevaret","badge_bad":"Tjeksum stemmer ikke",
+"save":"Gem","orig":"Originalfil · ukomprimeret","dl":"Download",
+"toast_r":"Modtog {0}","toast_ok":" · OK","toast_bad":" · verificering fejlede","toast_cancel":"{0} blev annulleret",
+"unstable":"Ustabil forbindelse…","big":"{0} er over 1,5 GB","min":"{0} min tilbage","sec":"{0} s tilbage"},
+
+"sv":{"tag":"Förlustfri överföring",
+"info":"Info","guide":"Så använder du",
+"g1":"Skapa: Tryck “Skapa” på ena enheten för att få en kod med 6 tecken, och dela den.",
+"g2":"Anslut: Ange koden på den andra enheten — enheterna ansluter direkt till varandra.",
+"g3":"Överför: Dra eller välj filer (flera, alla typer); tryck “Spara” efter mottagning.",
+"g4":"Förlustfritt: Filer skickas som råa byte; markeras som lyckat först när SHA-256 och storlek stämmer. Fotots metadata (EXIF) bevaras fullt ut.",
+"g5":"Tips: Båda enheter behöver internet för parkoppling; filer passerar aldrig en server. Håll sidan öppen under överföringen.",
+"theme_auto":"Automatiskt (tid)","theme_light":"Ljust","theme_dark":"Mörkt",
+"net_wait":"Ansluter…","net_peer":"Väntar","net_in":"Motparten ansluter…","net_on":"Ansluten","net_off":"Frånkopplad","net_err":"Fel",
+"create_t":"Skapa","create_p":"Generera en kod med 6 tecken","create_btn":"Skapa anslutning",
+"join_t":"Anslut","join_p":"Ange koden med 6 tecken","join_btn":"Anslut",
+"otp_short":"Ange hela koden med 6 tecken","otp_bad":"Koden hittades inte — kontrollera den, eller stängde värden sidan",
+"otp_timeout":"Kunde inte ansluta — kontrollera koden och att värden väntar",
+"otp_signal":"Alla signaleringskanaler misslyckades. Kontrollera nätverket",
+"otp_full":"Värden är redan ansluten till en annan enhet",
+"secure":"Den här miljön stöder inte P2P (kräver HTTPS eller en lokal fil). Överföringen kan misslyckas.",
+"con_sig":"Kontaktar servern…","con_dial":"Ringer upp den andra enheten…","con_ice":"Etablerar direkt anslutning…","con_retry":"Försöker igen…","cancel":"Avbryt",
+"host_t":"Väntar på den andra enheten","host_p":"Dela den här koden med 6 tecken","host_in":"Den andra enheten ansluter…",
+"host_err":"Alla signaleringskanaler misslyckades. Kontrollera nätverket och försök igen","retry":"Försök igen",
+"copy":"Kopiera koden","copied":"Koden har kopierats","copyfail":"Kopieringen misslyckades","newcode":"Ny kod","back":"Tillbaka",
+"conn_ok":"Ansluten","conn_lan":"Direkt · lokalt nät","conn_p2p":"Direkt · internet","conn_relay":"Via relä",
+"disc":"Motparten kopplade från. Ladda om sidan för att ansluta igen",
+"dz_t":"Dra filer hit eller klicka","dz_p":"Flera filer · alla typer · Ctrl+V fungerar också",
+"list_t":"Överföringar","list_empty":"Filer visas här",
+"st_queue":"I kö","st_send":"Skickar","st_recv":"Tar emot","st_verify":"Verifierar",
+"st_done_r":"Mottagen · OK","st_done_s":"Levererad · OK","st_bad_s":"Levererad · misslyckades","st_bad":"Kontrollen misslyckades","st_err":"Misslyckades","st_int":"Avbruten","err_conn":"Anslutningen bröts",
+"err_size":"Ofullständig — storleken stämmer inte",
+"badge_ok":"SHA-256 · förlustfritt","badge_exif":"Fotots metadata bevarat","badge_bad":"Kontrollsumman stämmer inte",
+"save":"Spara","orig":"Originalfil · okomprimerad","dl":"Hämta",
+"toast_r":"Tog emot {0}","toast_ok":" · OK","toast_bad":" · verifieringen misslyckades","toast_cancel":"{0} avbröts",
+"unstable":"Ostabil anslutning…","big":"{0} är över 1,5 GB","min":"{0} min kvar","sec":"{0} s kvar"},
+
+"fi":{"tag":"Häviötön siirto",
+"info":"Tietoja","guide":"Käyttöohje",
+"g1":"Luo: Napauta “Luo” toisella laitteella ja saat 6 merkin koodin, jonka jaat.",
+"g2":"Liity: Syötä koodi toisella laitteella — laitteet yhdistävät suoraan toisiinsa.",
+"g3":"Siirrä: Raahaa tai valitse tiedostoja (useita, kaikkia tyyppejä); napauta “Tallenna” vastaanotettuasi.",
+"g4":"Häviötön: Tiedostot lähetetään raakatavuina; merkataan onnistuneeksi vasta kun SHA-256 ja koko täsmäävät. Kuvan metatiedot (EXIF) säilyvät täysin.",
+"g5":"Vinkki: Molemmilla laitteilla on oltava internet pariliitosta varten; tiedostot eivät koskaan käy palvelimella. Pidä sivu auki siirron aikana.",
+"theme_auto":"Automaattinen (aika)","theme_light":"Vaalea","theme_dark":"Tumma",
+"net_wait":"Yhdistetään…","net_peer":"Odotetaan","net_in":"Toinen laite yhdistää…","net_on":"Yhdistetty","net_off":"Katkaistu","net_err":"Virhe",
+"create_t":"Luo","create_p":"Luo 6 merkin koodi","create_btn":"Luo yhteys",
+"join_t":"Liity","join_p":"Syötä 6 merkin koodi","join_btn":"Yhdistä",
+"otp_short":"Syötä koko 6 merkin koodi","otp_bad":"Koodia ei löytynyt — tarkista se tai isäntä sulki sivun",
+"otp_timeout":"Yhdistäminen epäonnistui — tarkista koodi ja että isäntä odottaa",
+"otp_signal":"Kaikki signalointikanavat epäonnistuivat. Tarkista verkko",
+"otp_full":"Isäntä on jo yhdistetty toiseen laitteeseen",
+"secure":"Tämä ympäristö ei tue P2P:tä (vaatii HTTPS:n tai paikallisen tiedoston). Siirto voi epäonnistua.",
+"con_sig":"Otetaan yhteyttä palvelimeen…","con_dial":"Soitetaan toiselle laitteelle…","con_ice":"Muodostetaan suoraa yhteyttä…","con_retry":"Yritetään uudelleen…","cancel":"Peruuta",
+"host_t":"Odotetaan toista laitetta","host_p":"Jaa tämä 6 merkin koodi","host_in":"Toinen laite yhdistää…",
+"host_err":"Kaikki signalointikanavat epäonnistuivat. Tarkista verkko ja yritä uudelleen","retry":"Yritä uudelleen",
+"copy":"Kopioi koodi","copied":"Koodi kopioitu","copyfail":"Kopiointi epäonnistui","newcode":"Uusi koodi","back":"Takaisin",
+"conn_ok":"Yhdistetty","conn_lan":"Suora · lähiverkko","conn_p2p":"Suora · internet","conn_relay":"Välityksen kautta",
+"disc":"Toinen osapuoli katkaisi. Lataa sivu uudelleen yhdistääksesi",
+"dz_t":"Raahaa tiedostot tähän tai napsauta","dz_p":"Useita tiedostoja · kaikki tyypit · Ctrl+V toimii myös",
+"list_t":"Siirrot","list_empty":"Tiedostot näkyvät tässä",
+"st_queue":"Jonossa","st_send":"Lähetetään","st_recv":"Vastaanotetaan","st_verify":"Tarkistetaan",
+"st_done_r":"Vastaanotettu · OK","st_done_s":"Toimitettu · OK","st_bad_s":"Toimitettu · virhe","st_bad":"Tarkistus ei mennyt läpi","st_err":"Epäonnistui","st_int":"Keskeytyi","err_conn":"Yhteys katkesi",
+"err_size":"Puutteellinen — koko ei täsmää",
+"badge_ok":"SHA-256 · häviötön","badge_exif":"Kuvan metatiedot säilytetty","badge_bad":"Tarkistusarvo ei täsmää",
+"save":"Tallenna","orig":"Alkuperäinen · pakkaamaton","dl":"Lataa",
+"toast_r":"Vastaanotettu {0}","toast_ok":" · OK","toast_bad":" · tarkistus epäonnistui","toast_cancel":"{0} peruutettiin",
+"unstable":"Epävakaa yhteys…","big":"{0} on yli 1,5 Gt","min":"{0} min jäljellä","sec":"{0} s jäljellä"},
+
+"de":{"tag":"Verlustfreie Übertragung",
+"info":"Info","guide":"Anleitung",
+"g1":"Erstellen: Auf einem Gerät „Erstellen“ tippen, um einen 6-Zeichen-Code zu erhalten, und ihn teilen.",
+"g2":"Beitreten: Den Code auf dem anderen Gerät eingeben — beide Geräte verbinden sich direkt.",
+"g3":"Übertragen: Dateien hineinziehen oder auswählen (mehrere, alle Typen); nach Empfang „Speichern“ tippen.",
+"g4":"Verlustfrei: Dateien werden als rohe Bytes gesendet; erst als Erfolg markiert, wenn SHA-256 und Größe übereinstimmen. Foto-Metadaten (EXIF) bleiben vollständig erhalten.",
+"g5":"Tipp: Beide Geräte benötigen Internet für die Kopplung; Dateien berühren nie einen Server. Seite während der Übertragung geöffnet halten.",
+"theme_auto":"Automatisch (Tageszeit)","theme_light":"Hell","theme_dark":"Dunkel",
+"net_wait":"Verbinde…","net_peer":"Warte","net_in":"Gegenseite verbindet…","net_on":"Verbunden","net_off":"Getrennt","net_err":"Fehler",
+"create_t":"Erstellen","create_p":"Code mit 6 Zeichen erzeugen","create_btn":"Verbindung erstellen",
+"join_t":"Beitreten","join_p":"Empfangenen Code eingeben","join_btn":"Verbinden",
+"otp_short":"Bitte den vollständigen 6-Zeichen-Code eingeben","otp_bad":"Code nicht gefunden — prüfen oder Host hat die Seite geschlossen",
+"otp_timeout":"Verbindung fehlgeschlagen — Code prüfen und sicherstellen, dass der Host wartet",
+"otp_signal":"Alle Signalisierungskanäle fehlgeschlagen. Netzwerk prüfen",
+"otp_full":"Der Host ist bereits mit einem anderen Gerät verbunden",
+"secure":"Diese Umgebung unterstützt kein P2P (HTTPS oder lokale Datei erforderlich). Die Übertragung kann fehlschlagen.",
+"con_sig":"Server wird kontaktiert…","con_dial":"Gerät wird angerufen…","con_ice":"Direktverbindung wird aufgebaut…","con_retry":"Neuer Versuch…","cancel":"Abbrechen",
+"host_t":"Warte auf das andere Gerät","host_p":"Diesen 6-Zeichen-Code teilen","host_in":"Das andere Gerät verbindet…",
+"host_err":"Alle Signalisierungskanäle fehlgeschlagen. Netzwerk prüfen und erneut versuchen","retry":"Erneut versuchen",
+"copy":"Code kopieren","copied":"Code kopiert","copyfail":"Kopieren fehlgeschlagen","newcode":"Neuer Code","back":"Zurück",
+"conn_ok":"Verbunden","conn_lan":"Direkt · LAN","conn_p2p":"Direkt · Internet","conn_relay":"Über Relay",
+"disc":"Die Gegenseite hat getrennt. Seite neu laden, um neu zu verbinden",
+"dz_t":"Dateien hierher ziehen oder klicken","dz_p":"Mehrere Dateien · alle Typen · Strg+V funktioniert auch",
+"list_t":"Übertragungen","list_empty":"Dateien erscheinen hier",
+"st_queue":"In Warteschlange","st_send":"Wird gesendet","st_recv":"Wird empfangen","st_verify":"Prüfung läuft",
+"st_done_r":"Empfangen · OK","st_done_s":"Zugestellt · OK","st_bad_s":"Zugestellt · Fehler","st_bad":"Prüfung fehlgeschlagen","st_err":"Fehlgeschlagen","st_int":"Unterbrochen","err_conn":"Verbindung getrennt",
+"err_size":"Unvollständig — Größe stimmt nicht",
+"badge_ok":"SHA-256 · verlustfrei","badge_exif":"Foto-Metadaten erhalten","badge_bad":"Prüfsumme stimmt nicht",
+"save":"Speichern","orig":"Originaldatei · unkomprimiert","dl":"Herunterladen",
+"toast_r":"{0} empfangen","toast_ok":" · OK","toast_bad":" · Prüfung fehlgeschlagen","toast_cancel":"{0} wurde abgebrochen",
+"unstable":"Instabile Verbindung…","big":"{0} ist größer als 1,5 GB","min":"noch {0} Min.","sec":"noch {0} Sek."},
+
+"fr":{"tag":"Transfert sans perte",
+"info":"Infos","guide":"Mode d'emploi",
+"g1":"Créer : sur un appareil, touchez « Créer » pour obtenir un code à 6 caractères, puis partagez-le.",
+"g2":"Rejoindre : saisissez le code sur l'autre appareil — les deux appareils se connectent directement.",
+"g3":"Transférer : déposez ou choisissez des fichiers (plusieurs, tous types) ; touchez « Enregistrer » après réception.",
+"g4":"Sans perte : les fichiers sont envoyés en octets bruts ; marqués réussis seulement si SHA-256 et taille correspondent. Les métadonnées photo (EXIF) sont entièrement conservées.",
+"g5":"Astuce : les deux appareils ont besoin d'Internet pour l'appairage ; les fichiers ne passent jamais par un serveur. Gardez la page ouverte pendant le transfert.",
+"theme_auto":"Automatique (heure)","theme_light":"Clair","theme_dark":"Sombre",
+"net_wait":"Connexion…","net_peer":"En attente","net_in":"L'autre appareil se connecte…","net_on":"Connecté","net_off":"Déconnecté","net_err":"Erreur",
+"create_t":"Créer","create_p":"Générez un code à 6 caractères","create_btn":"Créer une connexion",
+"join_t":"Rejoindre","join_p":"Saisissez le code à 6 caractères","join_btn":"Se connecter",
+"otp_short":"Saisissez le code complet à 6 caractères","otp_bad":"Code introuvable — vérifiez-le, ou l'hôte a fermé la page",
+"otp_timeout":"Échec de connexion — vérifiez le code et que l'hôte attend",
+"otp_signal":"Échec de tous les canaux de signalisation. Vérifiez le réseau",
+"otp_full":"L'hôte est déjà connecté à un autre appareil",
+"secure":"Cet environnement ne prend pas en charge le P2P (HTTPS ou fichier local requis). Le transfert peut échouer.",
+"con_sig":"Contact du serveur…","con_dial":"Appel de l'autre appareil…","con_ice":"Établissement de la liaison directe…","con_retry":"Nouvelle tentative…","cancel":"Annuler",
+"host_t":"En attente de l'autre appareil","host_p":"Partagez ce code à 6 caractères","host_in":"L'autre appareil se connecte…",
+"host_err":"Échec de tous les canaux de signalisation. Vérifiez le réseau et réessayez","retry":"Réessayer",
+"copy":"Copier le code","copied":"Code copié","copyfail":"Échec de la copie","newcode":"Nouveau code","back":"Retour",
+"conn_ok":"Connecté","conn_lan":"Direct · réseau local","conn_p2p":"Direct · Internet","conn_relay":"Via relais",
+"disc":"L'autre appareil s'est déconnecté. Rechargez la page pour vous reconnecter",
+"dz_t":"Déposez des fichiers ici, ou cliquez","dz_p":"Plusieurs fichiers · tous types · Ctrl+V fonctionne aussi",
+"list_t":"Transferts","list_empty":"Les fichiers apparaîtront ici",
+"st_queue":"En file","st_send":"Envoi","st_recv":"Réception","st_verify":"Vérification",
+"st_done_r":"Reçu · OK","st_done_s":"Livré · OK","st_bad_s":"Livré · échec","st_bad":"Échec de vérification","st_err":"Échec","st_int":"Interrompu","err_conn":"Connexion perdue",
+"err_size":"Incomplet — taille différente",
+"badge_ok":"SHA-256 · sans perte","badge_exif":"Métadonnées photo conservées","badge_bad":"Somme de contrôle différente",
+"save":"Enregistrer","orig":"Fichier original · non compressé","dl":"Télécharger",
+"toast_r":"{0} reçu","toast_ok":" · OK","toast_bad":" · échec de vérification","toast_cancel":"{0} a été annulé",
+"unstable":"Connexion instable…","big":"{0} dépasse 1,5 Go","min":"{0} min restantes","sec":"{0} s restantes"},
+
+"ru":{"tag":"Передача без потерь",
+"info":"Информация","guide":"Как пользоваться",
+"g1":"Создать: на одном устройстве нажмите «Создать», получите 6-значный код и передайте его.",
+"g2":"Подключиться: введите код на другом устройстве — устройства соединятся напрямую.",
+"g3":"Передача: перетащите или выберите файлы (несколько, любых типов); после получения нажмите «Сохранить».",
+"g4":"Без потерь: файлы передаются в исходном виде; успех отмечается только при совпадении SHA-256 и размера. Метаданные фото (EXIF) сохраняются полностью.",
+"g5":"Совет: для сопряжения обоим устройствам нужен интернет; файлы не проходят через серверы. Не закрывайте страницу во время передачи.",
+"theme_auto":"Авто (по времени)","theme_light":"Светлая","theme_dark":"Тёмная",
+"net_wait":"Подключение…","net_peer":"Ожидание","net_in":"Собеседник подключается…","net_on":"Подключено","net_off":"Отключено","net_err":"Ошибка",
+"create_t":"Создать","create_p":"Создайте 6-значный код","create_btn":"Создать соединение",
+"join_t":"Подключиться","join_p":"Введите 6-значный код","join_btn":"Подключить",
+"otp_short":"Введите полный 6-значный код","otp_bad":"Код не найден — проверьте его, или создатель закрыл страницу",
+"otp_timeout":"Не удалось подключиться — проверьте код и что создатель ждёт",
+"otp_signal":"Не удалось связаться ни по одному каналу. Проверьте сеть",
+"otp_full":"Хост уже подключён к другому устройству",
+"secure":"Эта среда не поддерживает P2P (нужен HTTPS или локальный файл). Передача может не работать.",
+"con_sig":"Связь с сервером…","con_dial":"Вызов другого устройства…","con_ice":"Установка прямой связи…","con_retry":"Повторная попытка…","cancel":"Отмена",
+"host_t":"Ожидание другого устройства","host_p":"Передайте этот 6-значный код","host_in":"Другое устройство подключается…",
+"host_err":"Не удалось связаться ни по одному каналу. Проверьте сеть и попробуйте снова","retry":"Повторить",
+"copy":"Копировать код","copied":"Код скопирован","copyfail":"Не удалось скопировать","newcode":"Новый код","back":"Назад",
+"conn_ok":"Подключено","conn_lan":"Напрямую · локальная сеть","conn_p2p":"Напрямую · интернет","conn_relay":"Через ретранслятор",
+"disc":"Другая сторона отключилась. Обновите страницу, чтобы подключиться снова",
+"dz_t":"Перетащите файлы сюда или нажмите","dz_p":"Несколько файлов · любые типы · Ctrl+V тоже работает",
+"list_t":"Передачи","list_empty":"Файлы появятся здесь",
+"st_queue":"В очереди","st_send":"Отправка","st_recv":"Приём","st_verify":"Проверка",
+"st_done_r":"Получено · OK","st_done_s":"Доставлено · OK","st_bad_s":"Доставлено · ошибка","st_bad":"Проверка не пройдена","st_err":"Ошибка","st_int":"Прервано","err_conn":"Связь прервана",
+"err_size":"Неполный файл — размер не совпадает",
+"badge_ok":"SHA-256 · без потерь","badge_exif":"Метаданные фото сохранены","badge_bad":"Контрольная сумма не совпадает",
+"save":"Сохранить","orig":"Оригинальный файл · без сжатия","dl":"Скачать",
+"toast_r":"Получен {0}","toast_ok":" · OK","toast_bad":" · проверка не пройдена","toast_cancel":"{0} отменён",
+"unstable":"Нестабильное соединение…","big":"{0} больше 1,5 ГБ","min":"осталось {0} мин","sec":"осталось {0} с"}
+};
+const LANGS=[["zh-CN","简体中文"],["en","English"],["zh-TW","繁體中文"],["da","Dansk"],["sv","Svenska"],["fi","Suomi"],["de","Deutsch"],["fr","Français"],["ru","Русский"]];
+const THEMES=[["auto","schedule","theme_auto"],["light","light_mode","theme_light"],["dark","dark_mode","theme_dark"]];
+
+/* ================= 全局状态 ================= */
+let lang="en",mode="auto";
+let mesh=null,myUid=Date.now().toString(36),roomCode=null;
+let hosting=false,joining=false,hostingIncoming=false;
+let sessionOpen=false,sessionBusy=false,answered=false,remoteSet=false,dialAttempt=0,leftFlag=false;
+let activePC=null,activeDC=null;
+let lastPong=0,pingTimer=null,warned=false,autoT=null;
+let hostAcceptT=null,joinAnsT=null,offerLoopT=null;
+let curNetKey="net_wait",curNetCls="wait",curConnKey="conn_ok",curStageKey="con_sig";
+let sending=false,recv=null;
+let peerUid=null,candBuf=[];
+let infoOpen=false,infoCloseT=null,lbCloseT=null,lockY=0;
+const sendQueue=[],sendItems={},recvItems={},seenMids=new Set();
+const stats={up:0,dn:0};
+
+/* ================= 工具 ================= */
+const el=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+function fmtBytes(b){
+  if(!Number.isFinite(b))return"--";
+  if(b<1024)return b+" B";
+  const u=["KB","MB","GB","TB"];let i=-1;
+  do{b/=1024;i++}while(b>=1024&&i<3);
+  return b.toFixed(b>=100?0:b>=10?1:2)+" "+u[i];
+}
+function t(k){
+  let s=(I18N[lang]&&I18N[lang][k]!=null)?I18N[lang][k]:(I18N.en[k]!=null?I18N.en[k]:k);
+  for(let i=1;i<arguments.length;i++)s=String(s).split("{"+(i-1)+"}").join(arguments[i]);
+  return s;
+}
+let snackT=null;
+function toast(msg){
+  const s=el("snackbar");s.textContent=msg;s.classList.add("show");
+  clearTimeout(snackT);snackT=setTimeout(()=>s.classList.remove("show"),3400);
+}
+function showView(id){
+  ["viewHome","viewHost","viewConnect","viewSession"].forEach(v=>{
+    const elV=el(v);
+    const show=v===id;
+    elV.classList.toggle("gone",!show);
+    if(show){
+      elV.classList.remove("view-anim");
+      void elV.offsetWidth;              /* 重启入场动画 */
+      elV.classList.add("view-anim");
+    }
+  });
+  window.scrollTo(0,0);
+}
+async function copyText(txt){
+  try{await navigator.clipboard.writeText(txt);return true}
+  catch(e){
+    const ta=document.createElement("textarea");ta.value=txt;ta.style.cssText="position:fixed;opacity:0";
+    document.body.appendChild(ta);ta.select();let ok=false;
+    try{ok=document.execCommand("copy")}catch(_){}
+    ta.remove();return ok;
+  }
+}
+function p2pSupported(){return typeof RTCPeerConnection!=="undefined"}
+
+/* ================= i18n ================= */
+function detectLang(){
+  try{const s=localStorage.getItem("pd-lang");if(s&&I18N[s])return s}catch(e){}
+  const list=[...(navigator.languages||[navigator.language||"en"])];
+  for(const c of list){
+    const l=(c||"").toLowerCase();
+    if(l.indexOf("zh")===0)return(l.indexOf("tw")>-1||l.indexOf("hk")>-1||l.indexOf("hant")>-1)?"zh-TW":"zh-CN";
+    if(l.indexOf("da")===0)return"da";
+    if(l.indexOf("sv")===0)return"sv";
+    if(l.indexOf("fi")===0)return"fi";
+    if(l.indexOf("de")===0)return"de";
+    if(l.indexOf("fr")===0)return"fr";
+    if(l.indexOf("ru")===0)return"ru";
+    if(l.indexOf("en")===0)return"en";
+  }
+  return"en";
+}
+function applyI18n(){
+  document.documentElement.lang=lang;
+  document.title="Photosdrop";
+  document.querySelectorAll("[data-i18n]").forEach(n=>{n.textContent=t(n.getAttribute("data-i18n"))});
+}
+function netState(key,cls){
+  curNetKey=key;curNetCls=cls;
+  const c=el("netChip");
+  c.classList.remove("gone","ok","wait","err");
+  c.classList.add(cls);
+  el("netChipText").textContent=t(key);
+}
+function hideNet(){el("netChip").classList.add("gone")}
+function setConnText(key){curConnKey=key;el("connText").textContent=t(key)}
+function setStage(k){curStageKey=k;el("conStage").textContent=t(k)}
+function setLang(l){
+  lang=l;try{localStorage.setItem("pd-lang",l)}catch(e){}
+  applyI18n();buildMenus();refreshLangDynamic();
+}
+function refreshLangDynamic(){
+  netState(curNetKey,curNetCls);
+  setConnText(curConnKey);
+  setStage(curStageKey);
+  el("hostDesc").textContent=t(hostingIncoming?"host_in":"host_p");
+  setEmptyHint();
+  const upd=it=>{if(it&&it.refs&&it.el)it.refs.state.textContent=stateLabel(it)};
+  for(const id in sendItems)upd(sendItems[id]);
+  for(const id in recvItems)upd(recvItems[id]);
+}
+
+/* ================= 主题 ================= */
+function phaseForHour(h){
+  if(h>=5&&h<8)return"morning";
+  if(h>=8&&h<17)return"day";
+  if(h>=17&&h<20)return"dusk";
+  return"night";
+}
+function setPhase(ph){
+  const d=document.documentElement;
+  if(d.getAttribute("data-phase")===ph)return;
+  d.classList.add("theming");
+  d.setAttribute("data-phase",ph);
+  setTimeout(()=>d.classList.remove("theming"),1500);
+}
+function syncPhase(){
+  if(mode==="light")setPhase("day");
+  else if(mode==="dark")setPhase("night");
+  else setPhase(phaseForHour(new Date().getHours()));
+}
+function applyMode(m){
+  mode=m;try{localStorage.setItem("pd-theme",m)}catch(e){}
+  syncPhase();buildMenus();
+  el("themeIcon").textContent={auto:"schedule",light:"light_mode",dark:"dark_mode"}[m];
+}
+setInterval(()=>{if(mode==="auto")syncPhase()},60000);
+
+/* ================= 顶栏菜单（语言 / 主题） ================= */
+function buildMenus(){
+  el("langMenu").innerHTML=LANGS.map(([c,n])=>
+    '<button class="menu-item'+(c===lang?" sel":"")+'" data-l="'+c+'"><span></span><span>'+n+'</span><span class="material-icons-outlined mi-check">check</span></button>').join("");
+  el("themeMenu").innerHTML=THEMES.map(([v,ic,k])=>
+    '<button class="menu-item'+(v===mode?" sel":"")+'" data-theme="'+v+'"><span class="material-icons-outlined">'+ic+'</span><span>'+esc(t(k))+'</span><span class="material-icons-outlined mi-check">check</span></button>').join("");
+}
+function closeMenus(){el("langMenu").classList.remove("open");el("themeMenu").classList.remove("open")}
+function toggleMenu(m){const was=m.classList.contains("open");closeMenus();if(!was)m.classList.add("open")}
+el("btnLang").addEventListener("click",e=>{e.stopPropagation();toggleMenu(el("langMenu"))});
+el("btnTheme").addEventListener("click",e=>{e.stopPropagation();toggleMenu(el("themeMenu"))});
+document.addEventListener("click",e=>{if(!e.target.closest(".menu-wrap"))closeMenus()});
+el("langMenu").addEventListener("click",e=>{const b=e.target.closest("[data-l]");if(b){setLang(b.getAttribute("data-l"));closeMenus()}});
+el("themeMenu").addEventListener("click",e=>{const b=e.target.closest("[data-theme]");if(b){applyMode(b.getAttribute("data-theme"));closeMenus()}});
+
+/* ================= 滚动锁定（弹层打开时冻结底层页面） ================= */
+function lockScroll(on){
+  if(on){
+    lockY=window.scrollY||window.pageYOffset||0;
+    document.body.style.top=(-lockY)+"px";
+    document.body.classList.add("pd-lock");
+  }else{
+    document.body.classList.remove("pd-lock");
+    document.body.style.top="";
+    window.scrollTo(0,lockY);
+  }
+}
+
+/* ================= 花形 "i" 信息页 ================= */
+function openInfo(){
+  clearTimeout(infoCloseT);
+  infoOpen=true;
+  lockScroll(true);
+  const o=el("infoOverlay");
+  o.classList.remove("gone");
+  requestAnimationFrame(()=>requestAnimationFrame(()=>o.classList.add("show")));
+}
+function closeInfo(){
+  infoOpen=false;
+  lockScroll(false);
+  const o=el("infoOverlay");
+  o.classList.remove("show");
+  infoCloseT=setTimeout(()=>o.classList.add("gone"),280);
+}
+el("btnInfo").addEventListener("click",openInfo);
+el("btnInfoClose").addEventListener("click",closeInfo);
+el("infoOverlay").addEventListener("click",e=>{if(e.target===el("infoOverlay"))closeInfo()});
+
+/* ================= M3 水波纹 ================= */
+document.addEventListener("pointerdown",e=>{
+  if(e.button!==undefined&&e.button!==0)return;
+  const host=e.target.closest(".btn,.ibtn,.menu-item,.dz");
+  if(!host)return;
+  const rect=host.getBoundingClientRect();
+  const size=Math.max(rect.width,rect.height)*1.1;
+  const x=(e.clientX!==undefined?e.clientX:rect.left+rect.width/2)-rect.left-size/2;
+  const y=(e.clientY!==undefined?e.clientY:rect.top+rect.height/2)-rect.top-size/2;
+  const r=document.createElement("span");
+  r.className="ripple";
+  r.style.width=r.style.height=size+"px";
+  r.style.left=x+"px";r.style.top=y+"px";
+  host.appendChild(r);
+  setTimeout(()=>r.remove(),520);
+},{passive:true});
+
+/* ================= MQTT over WebSocket 信令（无第三方库，4 服务器并联） ================= */
+const BROKERS=[
+  "wss://broker-cn.emqx.io:8084/mqtt",
+  "wss://broker.emqx.io:8084/mqtt",
+  "wss://broker.hivemq.com:8884/mqtt",
+  "wss://test.mosquitto.org:8081/mqtt"
+];
+const TE=new TextEncoder(),TD=new TextDecoder();
+function mRem(n){const a=[];do{let d=n&127;n>>>=7;if(n>0)d|=128;a.push(d)}while(n>0);return a}
+function wrap(h,body){
+  const rl=mRem(body.length);
+  const pkt=new Uint8Array(1+rl.length+body.length);
+  pkt[0]=h;pkt.set(rl,1);pkt.set(body,1+rl.length);
+  return pkt;
+}
+function mConnect(cid){
+  const cb=TE.encode(cid);
+  const body=new Uint8Array(12+cb.length);
+  body[0]=0;body[1]=4;body[2]=0x4D;body[3]=0x51;body[4]=0x54;body[5]=0x54;
+  body[6]=4;body[7]=0x02;body[8]=0;body[9]=60;
+  body[10]=cb.length>>8;body[11]=cb.length&255;
+  body.set(cb,12);
+  return wrap(0x10,body);
+}
+function mSub(topic){
+  const tb=TE.encode(topic);
+  const body=new Uint8Array(5+tb.length);
+  body[0]=0;body[1]=1;
+  body[2]=tb.length>>8;body[3]=tb.length&255;
+  body.set(tb,4);
+  body[4+tb.length]=0;
+  return wrap(0x82,body);
+}
+function mPub(topic,str){
+  const tb=TE.encode(topic),pb=TE.encode(str);
+  const body=new Uint8Array(2+tb.length+pb.length);
+  body[0]=tb.length>>8;body[1]=tb.length&255;
+  body.set(tb,2);body.set(pb,2+tb.length);
+  return wrap(0x30,body);
+}
+const mPing=new Uint8Array([0xC0,0]);
+
+class Link{
+  constructor(url,onMsg,onState){
+    this.url=url;this.onMsg=onMsg;this.onState=onState;
+    this.ws=null;this.up=false;this.closed=false;this.pingT=null;this.reT=null;
+    this.id="pd"+Math.random().toString(36).slice(2,12);
+  }
+  connect(topic){
+    this.topic=topic;
+    let ws=null;
+    try{ws=new WebSocket(this.url,"mqtt");ws.binaryType="arraybuffer"}
+    catch(e){this._retry();return}
+    this.ws=ws;
+    ws.onopen=()=>{this._send(mConnect(this.id))};
+    ws.onmessage=e=>{if(e.data instanceof ArrayBuffer)this._parse(e.data)};
+    ws.onclose=()=>this._down();
+    ws.onerror=()=>{};
+  }
+  _retry(){if(!this.closed)this.reT=setTimeout(()=>this.connect(this.topic),5000)}
+  _send(u8){try{if(this.ws&&this.ws.readyState===1)this.ws.send(u8)}catch(e){}}
+  publish(topic,str){this._send(mPub(topic,str))}
+  _down(){
+    clearInterval(this.pingT);this.pingT=null;
+    const was=this.up;this.up=false;
+    if(was)this.onState();
+    if(!this.closed)this._retry();
+  }
+  close(){
+    this.closed=true;
+    clearTimeout(this.reT);clearInterval(this.pingT);
+    try{this.ws&&this.ws.close()}catch(e){}
+  }
+  _parse(data){
+    const u8=new Uint8Array(data);
+    let off=0;
+    while(off+2<=u8.length){
+      const h=u8[off];
+      let len=0,mult=1,p=off+1,ok=false;
+      for(let i=0;i<4;i++){
+        if(p>=u8.length)return;
+        const b=u8[p++];len+=(b&127)*mult;mult*=128;
+        if(!(b&128)){ok=true;break}
+      }
+      if(!ok)return;
+      const end=p+len;
+      if(end>u8.length)return;
+      const type=h>>4;
+      if(type===2){
+        if(u8[p+1]===0){
+          this._send(mSub(this.topic));
+          this.up=true;
+          this.onState();
+          clearInterval(this.pingT);
+          this.pingT=setInterval(()=>this._send(mPing),25000);
+        }else{try{this.ws.close()}catch(e){}}
+      }else if(type===3){
+        const tl=(u8[p]<<8)|(u8[p+1]);
+        if(p+2+tl<=end){
+          const topic=TD.decode(u8.subarray(p+2,p+2+tl));
+          let q=p+2+tl;
+          if(((h>>1)&3)>0)q+=2;
+          let payload="";
+          try{payload=TD.decode(u8.subarray(q,end))}catch(e){}
+          if(payload){try{this.onMsg(topic,payload)}catch(e){}}
+        }
+      }
+      off=end;
+    }
+  }
+}
+
+function topicBase(code){return"photosdrop/s/"+code}
+function newMesh(base){
+  const m={closed:false,links:[]};
+  let failT=null,initT=null;
+  const onCount=()=>{
+    if(m.closed||mesh!==m||sessionOpen)return;
+    const n=m.links.filter(x=>x.up).length;
+    if(n>0){
+      clearTimeout(failT);clearTimeout(initT);
+      if(hosting&&!sessionBusy)netState("net_peer","wait");
+      if(joining&&!answered)setStage("con_dial");
+    }else{
+      clearTimeout(failT);
+      failT=setTimeout(()=>{
+        if(!m.closed&&mesh===m&&!sessionOpen&&m.upCount()===0){
+          if(hosting)hostFail("host_err");
+          else if(joining)failJoin("otp_signal");
+        }
+      },20000);
+    }
+  };
+  m.links=BROKERS.map(u=>new Link(u,onSignal,()=>onCount()));
+  m.upCount=()=>m.links.filter(x=>x.up).length;
+  m.start=function(){
+    m.links.forEach(l=>l.connect(base+"/+"));
+    clearTimeout(initT);
+    initT=setTimeout(()=>{
+      if(!m.closed&&mesh===m&&!sessionOpen&&m.upCount()===0){
+        if(hosting)hostFail("host_err");
+        else if(joining)failJoin("otp_signal");
+      }
+    },15000);
+  };
+  m.publish=function(sub,obj){
+    const s=JSON.stringify(obj);
+    const full=base+"/"+sub;
+    m.links.forEach(l=>{if(l.up)l.publish(full,s)});
+  };
+  m.close=function(){
+    m.closed=true;
+    clearTimeout(failT);clearTimeout(initT);
+    m.links.forEach(l=>l.close());
+  };
+  return m;
+}
+
+/* ================= WebRTC 配置 ================= */
+const RTC_CFG={iceServers:[
+  {urls:"stun:stun.miwifi.com:3478"},
+  {urls:"stun:stun.qq.com:3478"},
+  {urls:"stun:stun.chat.bilibili.com:3478"},
+  {urls:"stun:stun.cloudflare.com:3478"},
+  {urls:"stun:stun.l.google.com:19302"},
+  {urls:["turn:openrelay.metered.ca:443","turn:openrelay.metered.ca:443?transport=tcp"],username:"openrelayproject",credential:"openrelayproject"}
+]};
+function candJson(c){
+  try{return c.toJSON?c.toJSON():{candidate:c.candidate,sdpMid:c.sdpMid,sdpMLineIndex:c.sdpMLineIndex}}
+  catch(e){return null}
+}
+function flushCands(){
+  const buf=candBuf;candBuf=[];
+  if(!activePC)return;
+  for(const c of buf){try{activePC.addIceCandidate(c).catch(()=>{})}catch(e){}}
+}
+
+/* ================= 信令消息处理 ================= */
+function onSignal(topic,str){
+  let m;try{m=JSON.parse(str)}catch(e){return}
+  if(!m||m.from===myUid)return;
+  if(m.to&&m.to!==myUid)return;
+  if(m.mid){if(seenMids.has(m.mid))return;seenMids.add(m.mid);if(seenMids.size>800)seenMids.clear()}
+  switch(m.t){
+    case"offer":
+      if(hosting){
+        if(sessionBusy){
+          if(m.from!==peerUid&&mesh)mesh.publish("full",{v:1,mid:uid(),from:myUid,to:m.from,t:"full"});
+        }else hostAccept(m);
+      }
+      break;
+    case"ans":
+      if(joining&&m.to===myUid&&!answered&&!sessionOpen)answerJoiner(m);
+      break;
+    case"full":
+      if(m.to===myUid&&joining&&!sessionOpen)failJoin("otp_full");
+      break;
+    case"cand":
+      if(activePC){
+        if(remoteSet){try{activePC.addIceCandidate(m.c).catch(()=>{})}catch(e){}}
+        else candBuf.push(m.c);
+      }
+      break;
+  }
+}
+async function hostAccept(m){
+  sessionBusy=true;peerUid=m.from;
+  hostingIncoming=true;
+  el("hostDesc").textContent=t("host_in");
+  netState("net_in","wait");
+  remoteSet=false;candBuf=[];
+  if(activePC){try{activePC.close()}catch(e){}}
+  const pc=new RTCPeerConnection(RTC_CFG);
+  activePC=pc;
+  pc.ondatachannel=ev=>wireChannel(ev.channel,pc);
+  pc.onicecandidate=e=>{
+    const c=e.candidate&&candJson(e.candidate);
+    if(c&&mesh)mesh.publish("cand",{v:1,mid:uid(),from:myUid,to:peerUid,t:"cand",c:c});
+  };
+  try{
+    await pc.setRemoteDescription(m.sdp);
+    remoteSet=true;
+    flushCands();
+    const ans=await pc.createAnswer();
+    await pc.setLocalDescription(ans);
+    if(mesh)mesh.publish("ans",{v:1,mid:uid(),from:myUid,to:peerUid,t:"ans",sdp:ans});
+  }catch(e){hostSessionAbort();return}
+  clearTimeout(hostAcceptT);
+  hostAcceptT=setTimeout(()=>{if(!sessionOpen)hostSessionAbort()},32000);
+}
+function hostSessionAbort(){
+  clearTimeout(hostAcceptT);
+  if(sessionOpen)return;
+  try{activePC&&activePC.close()}catch(e){}
+  activePC=null;remoteSet=false;candBuf=[];
+  sessionBusy=false;peerUid=null;
+  hostingIncoming=false;
+  el("hostDesc").textContent=t("host_p");
+  netState("net_peer","wait");
+}
+async function answerJoiner(m){
+  answered=true;peerUid=m.from;
+  clearInterval(offerLoopT);
+  setStage("con_ice");
+  clearTimeout(joinAnsT);
+  joinAnsT=setTimeout(failOrRetry,25000);
+  try{
+    await activePC.setRemoteDescription(m.sdp);
+    remoteSet=true;
+    flushCands();
+  }catch(e){failOrRetry()}
+}
+
+/* ================= 校验码 ================= */
+const CODE_CHARS="ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+function genCode(){
+  const buf=new Uint8Array(6);
+  crypto.getRandomValues(buf);
+  let s="";for(let i=0;i<6;i++)s+=CODE_CHARS[buf[i]%32];
+  return s;
+}
+function renderTiles(code){
+  const w=el("codeTiles");w.innerHTML="";
+  code.split("").forEach((c,i)=>{
+    const d=document.createElement("div");
+    d.className="tile";
+    d.textContent=c;
+    d.style.animationDelay=(i*55)+"ms";       /* 弹性逐个弹出 */
+    w.appendChild(d);
+    if(i===2){
+      const g=document.createElement("span");
+      g.className="tile-gap";
+      w.appendChild(g);
+    }
+  });
+}
+
+/* ================= 主机 ================= */
+function hostFail(key){
+  el("hostSpin").classList.add("gone");
+  netState("net_err","err");
+  el("hostErrMsg").textContent=t(key);
+  el("hostErr").classList.remove("gone");
+}
+function startHost(){
+  el("hostErr").classList.add("gone");
+  el("hostSpin").classList.remove("gone");
+  hostingIncoming=false;
+  el("hostDesc").textContent=t("host_p");
+  roomCode=genCode();
+  renderTiles(roomCode);
+  sessionBusy=false;sessionOpen=false;remoteSet=false;candBuf=[];peerUid=null;
+  clearTimeout(hostAcceptT);
+  if(mesh){mesh.close();mesh=null}
+  myUid=uid();
+  seenMids.clear();
+  netState("net_wait","wait");
+  mesh=newMesh(topicBase(roomCode));
+  mesh.start();
+}
+function createRoom(){
+  if(hosting||joining||sessionOpen)return;
+  if(!p2pSupported()){el("secureWarn").classList.remove("gone");return}
+  hosting=true;
+  showView("viewHost");
+  el("hostErr").classList.add("gone");
+  el("hostSpin").classList.remove("gone");
+  el("codeTiles").innerHTML="";
+  startHost();
+}
+
+/* ================= 加入方：OTP 输入（整组分发，杜绝双字符） ================= */
+const otpInputs=[...document.querySelectorAll("#otp input")];
+let otpComposing=false;
+function getOtp(){return otpInputs.map(i=>i.value).join("")}
+function otpDistribute(startIdx,chars){
+  let idx=startIdx;
+  for(const c of chars){
+    if(idx>5)break;
+    otpInputs[idx].value=c;
+    otpInputs[idx].classList.add("filled");
+    otpInputs[idx].classList.remove("err");
+    idx++;
+  }
+  return idx;
+}
+function handleOtpInput(inp,i){
+  const raw=inp.value||"";
+  const chars=raw.replace(/[^a-zA-Z0-9]/g,"").toUpperCase().split("");
+  inp.value="";
+  el("joinErr").textContent="";
+  if(!chars.length){
+    inp.classList.remove("filled");
+    clearTimeout(autoT);
+    return;
+  }
+  const next=otpDistribute(i,chars);
+  otpInputs[Math.min(next,5)].focus();
+  clearTimeout(autoT);
+  if(getOtp().length===6)autoT=setTimeout(joinRoom,450);
+}
+otpInputs.forEach((inp,i)=>{
+  inp.addEventListener("compositionstart",()=>{otpComposing=true});
+  inp.addEventListener("compositionend",()=>{
+    otpComposing=false;
+    handleOtpInput(inp,i);
+  });
+  inp.addEventListener("input",()=>{
+    if(!otpComposing)handleOtpInput(inp,i);
+  });
+  inp.addEventListener("keydown",e=>{
+    if(e.key==="Backspace"&&!inp.value&&i>0){
+      e.preventDefault();
+      const p=otpInputs[i-1];
+      p.value="";p.classList.remove("filled");p.focus();
+      clearTimeout(autoT);
+    }
+    if(e.key==="Enter"){e.preventDefault();clearTimeout(autoT);joinRoom()}
+  });
+  inp.addEventListener("paste",e=>{
+    e.preventDefault();
+    let txt="";
+    try{txt=(e.clipboardData||window.clipboardData).getData("text")}catch(_){}
+    fillOtp(txt);
+  });
+});
+function fillOtp(txt){
+  const v=(txt||"").replace(/[^a-zA-Z0-9]/g,"").toUpperCase().slice(0,6);
+  otpInputs.forEach((inp,i)=>{inp.value=v[i]||"";inp.classList.toggle("filled",!!inp.value);inp.classList.remove("err")});
+  if(v.length)otpInputs[Math.min(v.length,5)].focus();
+  clearTimeout(autoT);
+  if(v.length===6)autoT=setTimeout(joinRoom,450);
+}
+function failJoinCleanup(){
+  clearTimeout(joinAnsT);clearInterval(offerLoopT);clearTimeout(hostAcceptT);
+  try{activePC&&activePC.close()}catch(e){}
+  activePC=null;activeDC=null;
+  if(mesh){mesh.close();mesh=null}
+}
+function failJoin(key){
+  joining=false;
+  failJoinCleanup();
+  showView("viewHome");
+  el("joinErr").textContent=t(key);
+  otpInputs.forEach(i=>i.classList.add("err"));
+  el("btnJoin").disabled=false;
+  hideNet();
+}
+function joinRoom(){
+  if(joining||sessionOpen||hosting)return;
+  const code=getOtp();
+  if(code.length!==6){
+    el("joinErr").textContent=t("otp_short");
+    otpInputs.forEach(i=>i.classList.add("err"));
+    return;
+  }
+  if(!p2pSupported()){el("secureWarn").classList.remove("gone");return}
+  joining=true;dialAttempt=1;
+  el("joinErr").textContent="";
+  el("btnJoin").disabled=true;
+  roomCode=code;hosting=false;
+  showView("viewConnect");
+  el("conCode").textContent=code.slice(0,3)+" "+code.slice(3);
+  dialPeer(code);
+}
+async function dialPeer(code){
+  if(!joining)return;
+  answered=false;remoteSet=false;candBuf=[];peerUid=null;
+  if(!mesh||mesh.upCount()===0){
+    if(mesh)mesh.close();
+    myUid=uid();
+    seenMids.clear();
+    mesh=newMesh(topicBase(code));
+    mesh.start();
+    setStage("con_sig");
+  }else setStage("con_dial");
+  if(activePC){try{activePC.close()}catch(e){}}
+  const pc=new RTCPeerConnection(RTC_CFG);
+  activePC=pc;
+  const dc=pc.createDataChannel("f",{ordered:true});
+  wireChannel(dc,pc);
+  pc.onicecandidate=e=>{
+    const c=e.candidate&&candJson(e.candidate);
+    if(c&&mesh)mesh.publish("cand",{v:1,mid:uid(),from:myUid,t:"cand",c:c});
+  };
+  let offer;
+  try{offer=await pc.createOffer();await pc.setLocalDescription(offer)}
+  catch(e){failJoin("otp_signal");return}
+  const msg={v:1,mid:uid(),from:myUid,t:"offer",sdp:offer};
+  mesh.publish("offer",msg);
+  setStage("con_dial");
+  clearInterval(offerLoopT);
+  let reps=0;
+  offerLoopT=setInterval(()=>{
+    if(!joining||answered)return;
+    if(++reps>=8){clearInterval(offerLoopT);return}
+    msg.mid=uid();
+    mesh.publish("offer",msg);
+  },5000);
+  clearTimeout(joinAnsT);
+  joinAnsT=setTimeout(failOrRetry,30000);
+}
+function failOrRetry(){
+  if(!joining||sessionOpen)return;
+  if(dialAttempt<2){
+    dialAttempt++;
+    setStage("con_retry");
+    setTimeout(()=>{if(joining&&!sessionOpen)dialPeer(roomCode)},1200);
+  }else failJoin("otp_timeout");
+}
+el("btnConCancel").addEventListener("click",()=>{
+  joining=false;
+  failJoinCleanup();
+  showView("viewHome");
+  el("btnJoin").disabled=false;
+  hideNet();
+});
+
+/* ================= 会话建立 ================= */
+function wireChannel(dc,pc){
+  dc.binaryType="arraybuffer";
+  dc.onopen=()=>{
+    if(sessionOpen)return;
+    sessionOpen=true;
+    clearTimeout(joinAnsT);clearInterval(offerLoopT);clearTimeout(hostAcceptT);
+    setupSession(dc,pc);
+  };
+  dc.onmessage=e=>{queueData(e.data)};
+  dc.onclose=()=>{
+    if(sessionOpen)onDisconnected();
+    else if(joining)failOrRetry();
+  };
+  pc.onconnectionstatechange=()=>{
+    if(pc.connectionState==="failed"){
+      if(sessionOpen)onDisconnected();
+      else if(joining)failOrRetry();
+      else if(hosting&&sessionBusy)hostSessionAbort();
+    }
+  };
+}
+function setupSession(dc,pc){
+  joining=false;hosting=false;
+  if(mesh){mesh.close();mesh=null}
+  activeDC=dc;activePC=pc;
+  showView("viewSession");
+  netState("net_on","ok");
+  setConnText("conn_ok");
+  el("connIcon").textContent="check_circle";
+  setEmptyHint();
+  startPing();
+  setTimeout(detectConnType,1800);
+}
+function onDisconnected(){
+  if(leftFlag)return;
+  leftFlag=true;
+  clearInterval(pingTimer);
+  netState("net_off","err");
+  setConnText("net_off");
+  el("connIcon").textContent="cloud_off";
+  toast(t("disc"));
+  if(recv){markItemErr(recv,"st_int");recv=null}
+  for(const id in sendItems){
+    const it=sendItems[id];
+    if(it.state==="sending"||it.state==="queued")markItemErr(it,"st_int");
+  }
+}
+function connOpen(){return!!(activeDC&&activeDC.readyState==="open")}
+function sendObj(o){try{if(connOpen())activeDC.send(JSON.stringify(o))}catch(e){}}
+function startPing(){
+  clearInterval(pingTimer);lastPong=Date.now();
+  pingTimer=setInterval(()=>{
+    if(!connOpen())return;
+    sendObj({t:"ping",ts:performance.now()});
+    if(Date.now()-lastPong>12000&&!warned){warned=true;toast(t("unstable"))}
+  },2500);
+}
+async function detectConnType(){
+  try{
+    const pc=activePC;
+    if(!pc)throw 0;
+    const st=await pc.getStats();
+    let sel=null;
+    st.forEach(r=>{if(r.type==="candidate-pair"&&r.state==="succeeded"&&(r.nominated||r.selected))sel=r});
+    if(!sel)throw 0;
+    let lc=null,rc=null;
+    st.forEach(x=>{if(x.id===sel.localCandidateId)lc=x;if(x.id===sel.remoteCandidateId)rc=x});
+    const rt=rc&&rc.candidateType,lt=lc&&lc.candidateType;
+    if(rt==="relay"){setConnText("conn_relay");el("connIcon").textContent="cloud"}
+    else if(lt==="host"&&rt==="host"){setConnText("conn_lan");el("connIcon").textContent="settings_ethernet"}
+    else{setConnText("conn_p2p");el("connIcon").textContent="public"}
+  }catch(e){}
+}
+
+/* ================= 传输常量与哈希 ================= */
+const BLOCK=4*1024*1024,CHUNK=64*1024;
+const HIGH=4*1024*1024,LOW=1.5*1024*1024;
+const subtleOK=!!(window.crypto&&crypto.subtle&&crypto.subtle.digest);
+async function sha256Hex(buf){
+  const d=await crypto.subtle.digest("SHA-256",buf);
+  return[...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+function hexToBytes(hex){
+  const out=new Uint8Array(hex.length/2);
+  for(let i=0;i<out.length;i++)out[i]=parseInt(hex.substr(i*2,2),16);
+  return out;
+}
+function concatBytes(arrs){
+  let n=0;for(const a of arrs)n+=a.length;
+  const out=new Uint8Array(n);let off=0;
+  for(const a of arrs){out.set(a,off);off+=a.length}
+  return out;
+}
+async function rootFromHashes(hs){return sha256Hex(concatBytes(hs.map(hexToBytes)))}
+
+/* EXIF 检测：只读文件头部确认拍摄信息存在，绝不写入或修改任何字节 */
+async function detectExif(blob,mime,name){
+  try{
+    const head=new Uint8Array(await blob.slice(0,256*1024).arrayBuffer());
+    const n=(name||"").toLowerCase();
+    const isJpeg=(mime&&mime.indexOf("image/jpeg")===0)||n.indexOf(".jpg")>-1||n.indexOf(".jpeg")>-1;
+    if(isJpeg){
+      if(head.length<12||head[0]!==0xFF||head[1]!==0xD8)return false;
+      let i=2;
+      while(i+11<head.length){
+        if(head[i]!==0xFF)return false;
+        const mk=head[i+1];
+        if(mk===0xDA)return false;
+        if(mk===0xE1&&head[i+4]===0x45&&head[i+5]===0x78&&head[i+6]===0x69&&head[i+7]===0x66&&head[i+8]===0x00)return true;
+        const len=(head[i+2]<<8)|head[i+3];
+        if(len<2)return false;
+        i+=2+len;
+      }
+      return false;
+    }
+    if(mime&&mime.indexOf("image/")===0){
+      const find=pat=>{
+        outer:for(let i=0;i<head.length-pat.length;i++){
+          for(let j=0;j<pat.length;j++)if(head[i+j]!==pat[j])continue outer;
+          return true;
+        }
+        return false;
+      };
+      return find([0x45,0x78,0x69,0x66])||find([0x65,0x58,0x49,0x66])||find([0x45,0x58,0x49,0x46]);
+    }
+    return false;
+  }catch(e){return false}
+}
+function iconFor(mime,name){
+  const m=mime||"",n=(name||"").toLowerCase();
+  if(m.indexOf("image/")===0)return"image";
+  if(m.indexOf("video/")===0)return"movie";
+  if(m.indexOf("audio/")===0)return"audiotrack";
+  if(m==="application/pdf"||n.indexOf(".pdf")>-1)return"picture_as_pdf";
+  if(/zip|rar|7z|tar|gzip/.test(m+n))return"folder";
+  if(m.indexOf("text/")===0||/\.(txt|md|csv|json|docx?)$/.test(n))return"description";
+  return"insert_drive_file";
+}
+
+/* ================= 接收（串行队列；每个分片只写一次） ================= */
+const msgQ=[];let draining=false;
+function queueData(d){msgQ.push(d);if(!draining)drainQ()}
+async function drainQ(){
+  draining=true;
+  while(msgQ.length){
+    const d=msgQ.shift();
+    try{
+      if(typeof d==="string")await onJson(JSON.parse(d));
+      else if(d instanceof ArrayBuffer)await onBinary(d);
+      else if(typeof Blob!=="undefined"&&d instanceof Blob)await onBinary(await d.arrayBuffer());
+    }catch(e){}
+  }
+  draining=false;
+}
+async function onJson(m){
+  switch(m.t){
+    case"ping":sendObj({t:"pong",ts:m.ts});break;
+    case"pong":{
+      lastPong=Date.now();warned=false;
+      const ms=Math.max(1,Math.round(performance.now()-m.ts));
+      el("latChip").textContent=ms+" ms";
+      break;
+    }
+    case"offer":startRecv(m);break;
+    case"bh":
+      if(subtleOK&&recv&&m.id===recv.id&&recv.hashes[m.i]!==undefined&&recv.hashes[m.i]!==m.h){
+        recv.corrupted=true;
+      }
+      break;
+    case"done":await finalizeRecv(m);break;
+    case"cancel":dropRecv(m.id);break;
+    case"ack":{
+      const it=sendItems[m.id];
+      if(it&&it.state==="waitack"){
+        it.state=m.ok===false?"badack":"done";
+        it.refs.state.textContent=t(m.ok===false?"st_bad_s":"st_done_s");
+        it.refs.state.className="xf-state "+(m.ok===false?"st-err":"st-done");
+        it.refs.bar.classList.add("fini");
+        if(it.refs.cancel)it.refs.cancel.classList.add("gone");
+      }
+      break;
+    }
+  }
+}
+function startRecv(m){
+  if(recv)return;
+  recv={id:m.id,name:m.name,size:m.size,mime:m.mime||"application/octet-stream",dir:"in",
+    hashes:[],curBlock:[],blockBytes:0,blockIndex:0,recvBytes:0,msgCount:0,done:0,blobParts:[],
+    corrupted:false,t0:performance.now(),lastUI:0,state:"receiving"};
+  recvItems[m.id]=recv;
+  renderItem(recv);
+}
+async function onBinary(buf){
+  if(!recv)return;
+  const r=recv;
+  r.recvBytes+=buf.byteLength;
+  r.msgCount++;
+  r.done=r.recvBytes;
+  r.blobParts.push(buf);              /* 文件本体：每分片恰好写入一次 */
+  r.curBlock.push(buf);               /* 仅用于本块 SHA-256 计算 */
+  r.blockBytes+=buf.byteLength;
+  const target=Math.min(BLOCK,r.size-r.blockIndex*BLOCK);
+  if(r.blockBytes>=target){
+    const block=concatBytes(r.curBlock.map(b=>new Uint8Array(b)));
+    r.curBlock=[];r.blockBytes=0;
+    if(subtleOK)r.hashes.push(await sha256Hex(block));
+    r.blockIndex++;
+  }
+  if(performance.now()-r.lastUI>120){r.lastUI=performance.now();updateItemUI(r)}
+}
+async function finalizeRecv(m){
+  if(!recv||recv.id!==m.id)return;
+  const r=recv;recv=null;
+  r.blob=new Blob(r.blobParts,{type:r.mime});
+  const sizeOK=(r.recvBytes===r.size)&&(r.blob.size===r.size)&&((m.n==null)||(m.n===r.msgCount));
+  let ok=null;
+  if(subtleOK&&m.root){
+    const root=await rootFromHashes(r.hashes);
+    ok=(root===m.root)&&!r.corrupted&&sizeOK;
+  }else{
+    ok=sizeOK&&!r.corrupted;
+  }
+  r.url=URL.createObjectURL(r.blob);
+  const hasExif=await detectExif(r.blob,r.mime,r.name);
+  stats.dn+=r.size;updateStats();
+  finishRecvUI(r,ok,hasExif,sizeOK);
+  sendObj({t:"ack",id:m.id,ok:ok});
+  toast(t("toast_r",r.name)+(ok===true?t("toast_ok"):(!sizeOK?" · "+t("err_size"):ok===false?t("toast_bad"):"")));
+}
+function dropRecv(id){
+  const r=recvItems[id];
+  if(r){
+    if(recv&&recv.id===id)recv=null;
+    if(r.el)r.el.remove();
+    delete recvItems[id];
+    toast(t("toast_cancel",r.name));
+    setEmptyHint();
+  }
+}
+function updateStats(){
+  el("statUp").textContent=fmtBytes(stats.up);
+  el("statDn").textContent=fmtBytes(stats.dn);
+}
+
+/* ================= 列表 UI ================= */
+function setEmptyHint(){
+  const list=el("xferList");
+  if(list.children.length===0)list.innerHTML='<div class="empty"><span class="material-icons-outlined">swap_vert</span><span>'+esc(t("list_empty"))+"</span></div>";
+}
+function renderItem(item){
+  const empty=el("xferList").querySelector(".empty");
+  if(empty)empty.remove();
+  const div=document.createElement("div");
+  div.className="xf";
+  const dirIcon=item.dir==="out"?"arrow_upward":"arrow_downward";
+  div.innerHTML=
+    '<div class="xf-ic"><span class="material-icons-outlined">'+iconFor(item.mime,item.name)+'</span>'+
+    '<span class="dir '+(item.dir==="out"?"up":"dn")+'"><span class="material-icons-outlined">'+dirIcon+"</span></span></div>"+
+    '<div class="xf-body"><div class="xf-top"><span class="xf-name" title="'+esc(item.name)+'">'+esc(item.name)+"</span>"+
+    '<span class="xf-size">'+fmtBytes(item.size)+"</span></div>"+
+    '<div class="xf-sub"><span class="xf-info"></span><span class="xf-state"></span></div>'+
+    '<div class="xf-prog"><div class="xf-bar"></div></div></div>';
+  item.el=div;
+  item.refs={info:div.querySelector(".xf-info"),state:div.querySelector(".xf-state"),bar:div.querySelector(".xf-bar"),ic:div.querySelector(".xf-ic")};
+  if(item.dir==="out"){
+    const btn=document.createElement("button");
+    btn.className="ibtn";
+    btn.innerHTML='<span class="material-icons-outlined">close</span>';
+    btn.addEventListener("click",()=>{
+      item.cancelled=true;
+      if(item.state==="queued"){item.el.remove();delete sendItems[item.id];setEmptyHint()}
+    });
+    div.appendChild(btn);
+    item.refs.cancel=btn;
+  }
+  el("xferList").appendChild(div);
+}
+function stateLabel(item){
+  const map={queued:"st_queue",sending:"st_send",receiving:"st_recv",waitack:"st_verify"};
+  if(map[item.state])return t(map[item.state]);
+  if(item.state==="badsize")return t("err_size");
+  if(item.state==="done"||item.state==="badack")return t(item.dir==="out"?"st_done_s":"st_done_r");
+  if(item.state==="bad")return t("st_bad");
+  if(item.state==="error"||item.state==="interrupt")return t("st_int");
+  return t("st_err");
+}
+function updateItemUI(item){
+  const pct=item.size?Math.min(100,item.done/item.size*100):100;
+  item.refs.bar.style.width=pct+"%";
+  const dt=(performance.now()-item.t0)/1000;
+  const spd=item.done/Math.max(dt,.3);
+  let info=fmtBytes(item.done)+" / "+fmtBytes(item.size)+" · "+fmtBytes(spd)+"/s";
+  if(item.dir==="out"&&item.done<item.size){
+    const remain=spd>0?(item.size-item.done)/spd:0;
+    if(remain>1)info+=" · "+(remain>90?t("min",Math.ceil(remain/60)):t("sec",Math.ceil(remain)));
+  }
+  item.refs.info.textContent=info;
+  item.refs.state.className="xf-state st-send";
+  item.refs.state.textContent=stateLabel(item);
+}
+function finishRecvUI(r,ok,hasExif,sizeOK){
+  const dt=(performance.now()-r.t0)/1000;
+  r.state=sizeOK?(ok===false?"bad":"done"):"badsize";
+  r.refs.bar.style.width="100%";
+  r.refs.bar.classList.add("fini");
+  r.refs.state.className="xf-state "+((ok===false||!sizeOK)?"st-err":"st-done");
+  r.refs.state.textContent=!sizeOK?t("err_size"):(ok===false?t("st_bad"):t("st_done_r"));
+  r.refs.info.textContent=fmtBytes(r.size)+" = "+fmtBytes(r.blob.size)+" · "+fmtBytes(r.size/Math.max(dt,.3))+"/s";
+  const side=document.createElement("div");
+  side.className="xf-side";
+  let html="";
+  if(ok===true)html+='<span class="vbadge"><span class="material-icons-outlined">check</span>'+esc(t("badge_ok"))+"</span>";
+  else if(ok===false||!sizeOK)html+='<span class="vbadge bad"><span class="material-icons-outlined">close</span>'+esc(!sizeOK?t("err_size"):t("badge_bad"))+"</span>";
+  if(hasExif)html+='<span class="vbadge" style="animation-delay:.1s"><span class="material-icons-outlined">photo_camera</span>'+esc(t("badge_exif"))+"</span>";
+  html+='<button class="btn btn-tonal btn-sm" style="animation:fadeUp .3s var(--ease) .15s both"><span class="material-icons-outlined">file_download</span>'+esc(t("save"))+"</button>";
+  side.innerHTML=html;
+  side.querySelector("button").addEventListener("click",()=>saveBlob(r.blob,r.name));
+  r.el.appendChild(side);
+  if(r.mime.indexOf("image/")===0){
+    const img=document.createElement("img");
+    img.src=r.url;img.alt=r.name;
+    img.addEventListener("click",()=>openLightbox(r));
+    r.refs.ic.innerHTML="";r.refs.ic.appendChild(img);
+  }
+}
+function markItemErr(item,stateKey){
+  item.state=stateKey==="st_err"?"error":"interrupt";
+  if(!item.refs)return;
+  item.refs.state.className="xf-state st-err";
+  item.refs.state.textContent=t(stateKey);
+  item.refs.info.textContent=t("err_conn");
+}
+function saveBlob(blob,name){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=name||"file";
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+let lbCtx=null;
+function openLightbox(r){
+  lbCtx=r;
+  clearTimeout(lbCloseT);
+  lockScroll(true);
+  el("lbImg").src=r.url;
+  el("lbName").textContent=r.name+" · "+fmtBytes(r.size)+" = "+fmtBytes(r.blob.size)+" · "+t("orig");
+  const lb=el("lightbox");
+  lb.classList.remove("gone");
+  requestAnimationFrame(()=>requestAnimationFrame(()=>lb.classList.add("show")));
+}
+function closeLightbox(){
+  clearTimeout(lbCloseT);
+  lockScroll(false);
+  const lb=el("lightbox");
+  lb.classList.remove("show");
+  lbCloseT=setTimeout(()=>lb.classList.add("gone"),240);
+}
+el("lbClose").addEventListener("click",closeLightbox);
+el("lightbox").addEventListener("click",e=>{if(e.target===el("lightbox"))closeLightbox()});
+el("lbSave").addEventListener("click",()=>{if(lbCtx)saveBlob(lbCtx.blob,lbCtx.name)});
+
+/* ================= 发送引擎 ================= */
+function addFiles(files){
+  if(!files||!files.length||!connOpen())return;
+  for(const f of files){
+    if(f.size>1.5*1024*1024*1024)toast(t("big",f.name));
+    const item={id:uid(),file:f,dir:"out",name:f.name,size:f.size,mime:f.type||"application/octet-stream",
+      state:"queued",done:0,t0:0,lastUI:0,cancelled:false};
+    sendItems[item.id]=item;
+    renderItem(item);
+    item.refs.state.textContent=t("st_queue");
+    sendQueue.push(item);
+  }
+  pumpQueue();
+}
+async function pumpQueue(){
+  if(sending)return;
+  sending=true;
+  while(sendQueue.length){
+    const item=sendQueue.shift();
+    if(item.cancelled){if(item.el)item.el.remove();delete sendItems[item.id];setEmptyHint();continue}
+    await transmitFile(item);
+  }
+  sending=false;
+}
+async function transmitFile(item){
+  const f=item.file;
+  item.state="sending";item.t0=performance.now();item.lastUI=0;
+  sendObj({t:"offer",id:item.id,name:f.name,size:f.size,mime:f.type||"application/octet-stream"});
+  try{
+    if(!connOpen())throw new Error("closed");
+    const hashes=[];
+    let chunkCount=0;
+    if(f.size>0){
+      let off=0,bi=0;
+      while(off<f.size&&!item.cancelled){
+        if(!connOpen())throw new Error("closed");
+        const end=Math.min(off+BLOCK,f.size);
+        const buf=await f.slice(off,end).arrayBuffer();   /* 原始字节：EXIF/镜头数据一字节不动 */
+        if(subtleOK)hashes.push(await sha256Hex(buf));
+        const u8=new Uint8Array(buf);
+        let p=0;
+        while(p<u8.length&&!item.cancelled){
+          if(activeDC&&activeDC.bufferedAmount>=HIGH){await waitDrain(activeDC,LOW);continue}
+          if(!connOpen())throw new Error("closed");
+          const n=Math.min(CHUNK,u8.length-p);
+          activeDC.send(u8.subarray(p,p+n));
+          p+=n;off+=n;item.done=off;stats.up+=n;chunkCount++;
+          if(performance.now()-item.lastUI>120){item.lastUI=performance.now();updateItemUI(item);updateStats()}
+        }
+        if(!item.cancelled&&subtleOK)sendObj({t:"bh",id:item.id,i:bi,h:hashes[bi]});
+        bi++;
+      }
+    }
+    if(item.cancelled){
+      sendObj({t:"cancel",id:item.id});
+      if(item.el)item.el.remove();
+      delete sendItems[item.id];
+      setEmptyHint();
+      return;
+    }
+    sendObj({t:"done",id:item.id,root:subtleOK?await rootFromHashes(hashes):null,n:chunkCount});
+    item.state="waitack";
+    item.refs.bar.style.width="100%";
+    item.refs.state.className="xf-state st-send";
+    item.refs.state.textContent=t("st_verify");
+    item.refs.info.textContent=fmtBytes(f.size);
+    if(item.refs.cancel)item.refs.cancel.classList.add("gone");
+  }catch(e){
+    markItemErr(item,leftFlag?"st_int":"st_err");
+  }
+}
+function waitDrain(dc,low){
+  if(dc.bufferedAmount<=low)return Promise.resolve();
+  return new Promise(res=>{
+    let done=false;
+    const fin=()=>{
+      if(done)return;done=true;
+      clearInterval(tm);
+      try{dc.removeEventListener("bufferedamountlow",fin)}catch(e){}
+      res();
+    };
+    try{
+      dc.bufferedAmountLowThreshold=low;
+      dc.addEventListener("bufferedamountlow",fin);
+    }catch(e){}
+    const tm=setInterval(()=>{if(dc.bufferedAmount<=low)fin()},120);
+    setTimeout(fin,1600);
+  });
+}
+
+/* ================= 拖放 / 粘贴 ================= */
+const dz=el("dropzone"),fileInput=el("fileInput");
+["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag")}));
+["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag")}));
+dz.addEventListener("drop",e=>addFiles([...(e.dataTransfer?e.dataTransfer.files:[])]));
+dz.addEventListener("click",()=>fileInput.click());
+dz.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fileInput.click()}});
+fileInput.addEventListener("change",e=>{addFiles([...e.target.files]);e.target.value=""});
+window.addEventListener("dragover",e=>e.preventDefault());
+window.addEventListener("drop",e=>e.preventDefault());
+window.addEventListener("paste",e=>{
+  if(el("viewSession").classList.contains("gone"))return;
+  const items=[...((e.clipboardData&&e.clipboardData.items)||[])];
+  const files=items.filter(i=>i.kind==="file").map(i=>i.getAsFile()).filter(Boolean);
+  if(files.length)addFiles(files);
+});
+
+/* ================= 按钮 ================= */
+el("btnCreate").addEventListener("click",createRoom);
+el("btnJoin").addEventListener("click",()=>{clearTimeout(autoT);joinRoom()});
+el("btnCopy").addEventListener("click",async()=>{
+  if(roomCode&&await copyText(roomCode))toast(t("copied")+"： "+roomCode);
+  else toast(t("copyfail"));
+});
+el("btnNewCode").addEventListener("click",()=>{
+  if(el("viewHost").classList.contains("gone"))return;
+  startHost();
+});
+el("btnHostRetry").addEventListener("click",()=>{
+  el("hostErr").classList.add("gone");
+  el("hostSpin").classList.remove("gone");
+  startHost();
+});
+el("btnHostBack").addEventListener("click",()=>{
+  hosting=false;
+  if(mesh){mesh.close();mesh=null}
+  sessionBusy=false;activePC=null;hostingIncoming=false;
+  showView("viewHome");
+  hideNet();
+});
+el("btnLeave").addEventListener("click",()=>{
+  leftFlag=true;
+  try{activeDC&&activeDC.close()}catch(e){}
+  try{activePC&&activePC.close()}catch(e){}
+  if(mesh){mesh.close();mesh=null}
+  location.reload();
+});
+
+/* Esc 关闭菜单 / 信息页 / 图片查看 */
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+    closeMenus();
+    if(infoOpen)closeInfo();
+    if(!el("lightbox").classList.contains("gone"))closeLightbox();
+  }
+});
+
+/* ================= 初始化 ================= */
+lang=detectLang();
+applyI18n();
+buildMenus();
+mode=(function(){try{return localStorage.getItem("pd-theme")||"auto"}catch(e){return"auto"}})();
+el("themeIcon").textContent={auto:"schedule",light:"light_mode",dark:"dark_mode"}[mode];
+syncPhase();
+showView("viewHome");
+if(!p2pSupported())el("secureWarn").classList.remove("gone");
+
+/* 图标字体国内镜像回退 */
+setTimeout(()=>{
+  try{
+    if(document.fonts&&!document.fonts.check('24px "Material Icons Outlined"')){
+      const l=document.createElement("link");
+      l.rel="stylesheet";
+      l.href="https://fonts.loli.net/icon?family=Material+Icons+Outlined";
+      document.head.appendChild(l);
+    }
+  }catch(e){}
+},3000);
+})();
+</script>
+</body>
+</html>
